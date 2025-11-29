@@ -63,15 +63,27 @@ export class CrawlerService {
 
   /**
    * Parse HTML from websdr.org
-   * This method is ready for when we implement actual crawling
+   * This method is a stub for when we implement actual crawling.
+   * 
+   * @param html - Raw HTML from websdr.org
+   * @returns Parsed station data
+   * 
+   * TODO: Implement actual parsing when websdr.org structure is analyzed
    */
   private parseWebsdrHtml(html: string): ParsedStation[] {
+    // Load HTML with cheerio for future parsing
     const $ = cheerio.load(html);
     const stations: ParsedStation[] = [];
 
-    // websdr.org structure parsing would go here
-    // The actual structure needs to be analyzed from the live site
+    // Example structure (to be implemented):
+    // $('table tr').each((_, row) => {
+    //   const name = $(row).find('td:first').text();
+    //   const url = $(row).find('a').attr('href');
+    //   // ... extract other fields
+    //   stations.push({ name, url, ... });
+    // });
 
+    this.logger.warn(`parseWebsdrHtml: HTML parsing not yet implemented (${html.length} bytes received)`);
     return stations;
   }
 

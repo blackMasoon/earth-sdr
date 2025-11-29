@@ -1,4 +1,4 @@
-import { Controller, Get, Query, ParseArrayPipe } from '@nestjs/common';
+import { Controller, Get, Query, BadRequestException } from '@nestjs/common';
 import { PropagationService } from './propagation.service';
 
 @Controller('propagation')
@@ -15,7 +15,7 @@ export class PropagationController {
     const longitude = parseFloat(lon);
 
     if (isNaN(latitude) || isNaN(longitude)) {
-      return { error: 'Invalid coordinates' };
+      throw new BadRequestException('Invalid coordinates');
     }
 
     const frequencies = freqs

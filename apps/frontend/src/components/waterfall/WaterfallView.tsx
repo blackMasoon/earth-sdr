@@ -89,25 +89,32 @@ export function WaterfallView() {
     updateSize();
     window.addEventListener('resize', updateSize);
 
+    // Throttle frame rate for performance (target ~30 FPS)
+    let lastFrameTime = 0;
+    const targetFrameInterval = 1000 / 30;
+
     // Animation loop
-    const render = () => {
+    const render = (currentTime: number) => {
+      // Throttle to target frame rate
+      if (currentTime - lastFrameTime < targetFrameInterval) {
+        animationRef.current = requestAnimationFrame(render);
+        return;
+      }
+      lastFrameTime = currentTime;
+
       if (!imageDataRef.current) return;
 
       const imageData = imageDataRef.current;
       const width = canvas.width;
       const height = canvas.height;
 
-      // Shift existing data down
-      for (let y = height - 1; y > 0; y--) {
-        for (let x = 0; x < width; x++) {
-          const srcIdx = ((y - 1) * width + x) * 4;
-          const dstIdx = (y * width + x) * 4;
-          imageData.data[dstIdx] = imageData.data[srcIdx];
-          imageData.data[dstIdx + 1] = imageData.data[srcIdx + 1];
-          imageData.data[dstIdx + 2] = imageData.data[srcIdx + 2];
-          imageData.data[dstIdx + 3] = 255;
-        }
-      }
+      // Shift existing data down using copyWithin for better performance
+      // Copy rows from top to bottom (each row is width * 4 bytes for RGBA)
+      const bytesPerRow = width * 4;
+      const totalBytes = height * bytesPerRow;
+      
+      // Shift all data down by one row
+      imageData.data.copyWithin(bytesPerRow, 0, totalBytes - bytesPerRow);
 
       // Generate new line at top
       const newLine = generateNoiseLine(width);
@@ -141,7 +148,7 @@ export function WaterfallView() {
       animationRef.current = requestAnimationFrame(render);
     };
 
-    render();
+    animationRef.current = requestAnimationFrame(render);
 
     return () => {
       window.removeEventListener('resize', updateSize);

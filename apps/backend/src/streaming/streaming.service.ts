@@ -60,12 +60,9 @@ class StandardWebSdrAdapter implements WebSdrAdapter {
 
       // Parse header (simplified - actual format may vary)
       const timestamp = Date.now();
-      const magnitudes: number[] = [];
 
-      // Read FFT data (typically 8-bit values normalized 0-255)
-      for (let i = 0; i < data.length; i++) {
-        magnitudes.push(data[i] / 255);
-      }
+      // Convert FFT data (8-bit values normalized 0-255) to magnitudes using Array.from for efficiency
+      const magnitudes = Array.from(data, (byte) => byte / 255);
 
       return {
         timestamp,
@@ -256,8 +253,12 @@ export class StreamingService {
       clearTimeout(timeout);
       const latencyMs = Date.now() - startTime;
 
+      // Consider online if status is successful (2xx) or if server doesn't support HEAD (405)
+      // Status 405 Method Not Allowed is common for servers that only support GET
+      const isOnline = response.ok || response.status === 405;
+
       return {
-        online: response.ok || response.status === 405, // Some servers don't support HEAD
+        online: isOnline,
         latencyMs,
       };
     } catch (error) {

@@ -190,7 +190,8 @@ export function WaterfallView() {
       }
 
       for (let x = 0; x < width; x++) {
-        const [r, g, b] = getColor(newLine[x] || 0);
+        // newLine always has exactly 'width' elements from our generators
+        const [r, g, b] = getColor(newLine[x]);
         const idx = x * 4;
         imageData.data[idx] = r;
         imageData.data[idx + 1] = g;

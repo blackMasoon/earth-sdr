@@ -65,7 +65,7 @@ export class StreamingController {
       `Starting waterfall stream for station ${stationId}, range: ${freqMin}-${freqMax} Hz`,
     );
 
-    // Send waterfall data at ~30 lines per second
+    // Send waterfall data at approximately 30 lines per second (33ms interval ≈ 30.3 fps)
     // In production, this would proxy real WebSDR data
     return interval(33).pipe(
       map(() => {

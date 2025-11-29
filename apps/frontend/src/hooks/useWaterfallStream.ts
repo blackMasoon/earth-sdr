@@ -108,15 +108,6 @@ export function useWaterfallStream({
     };
   }, [connect]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-    };
-  }, []);
-
   return {
     isConnected,
     isConnecting,

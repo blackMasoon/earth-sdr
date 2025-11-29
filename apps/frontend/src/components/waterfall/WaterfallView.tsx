@@ -1,21 +1,26 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { useAppStore } from '@/store';
-import { clamp, formatFrequency } from '@websdr-atlas/shared';
+import { clamp, formatFrequency, WaterfallLine } from '@websdr-atlas/shared';
+import { useWaterfallStream } from '@/hooks/useWaterfallStream';
 
 /**
  * WaterfallView component
- * 
- * MVP implementation with test noise generator.
+ *
+ * Supports two modes:
+ * 1. Streaming mode: Uses SSE from backend streaming proxy
+ * 2. Local mode: Uses local test noise generator (fallback)
+ *
  * Supports zoom and pan via scroll wheel and keyboard.
- * TODO: Replace with real WebSDR data stream integration.
  */
 export function WaterfallView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
   const imageDataRef = useRef<ImageData | null>(null);
+  const lineQueueRef = useRef<WaterfallLine[]>([]);
 
   const frequencyViewRange = useAppStore((state) => state.frequencyViewRange);
+  const selectedStation = useAppStore((state) => state.selectedStation);
   const selectedFrequencyHz = useAppStore((state) => state.selectedFrequencyHz);
   const setSelectedFrequency = useAppStore((state) => state.setSelectedFrequency);
   const zoomLevel = useAppStore((state) => state.zoomLevel);
@@ -24,6 +29,27 @@ export function WaterfallView() {
   const panLeft = useAppStore((state) => state.panLeft);
   const panRight = useAppStore((state) => state.panRight);
   const resetZoom = useAppStore((state) => state.resetZoom);
+
+  // Streaming mode state
+  const [useStreaming, setUseStreaming] = useState(true);
+
+  // Handle incoming waterfall lines from stream
+  const handleWaterfallLine = useCallback((line: WaterfallLine) => {
+    lineQueueRef.current.push(line);
+    // Limit queue size to prevent memory issues
+    if (lineQueueRef.current.length > 100) {
+      lineQueueRef.current.shift();
+    }
+  }, []);
+
+  // Connect to streaming API
+  const { isConnected, isConnecting, error: streamError } = useWaterfallStream({
+    stationId: useStreaming ? selectedStation?.id ?? null : null,
+    minHz: frequencyViewRange?.minHz,
+    maxHz: frequencyViewRange?.maxHz,
+    enabled: useStreaming && !!selectedStation,
+    onLine: handleWaterfallLine,
+  });
 
   // Color palette for waterfall (intensity to color)
   const getColor = useCallback((intensity: number): [number, number, number] => {
@@ -49,31 +75,59 @@ export function WaterfallView() {
     }
   }, []);
 
-  // Generate test noise line
-  const generateNoiseLine = useCallback(
-    (width: number): number[] => {
-      const line: number[] = [];
-      const baseNoise = Math.random() * 0.2;
+  // Generate test noise line (fallback mode)
+  const generateNoiseLine = useCallback((width: number): number[] => {
+    const line: number[] = [];
+    const baseNoise = Math.random() * 0.2;
 
-      for (let i = 0; i < width; i++) {
-        // Base noise floor
-        let value = baseNoise + Math.random() * 0.1;
+    for (let i = 0; i < width; i++) {
+      // Base noise floor
+      let value = baseNoise + Math.random() * 0.1;
 
-        // Add some "signals" at random positions
-        const signalPositions = [0.15, 0.25, 0.4, 0.6, 0.75, 0.85];
-        for (const pos of signalPositions) {
-          const dist = Math.abs(i / width - pos);
-          if (dist < 0.02) {
-            value += (0.5 + Math.random() * 0.5) * (1 - dist / 0.02);
-          }
+      // Add some "signals" at random positions
+      const signalPositions = [0.15, 0.25, 0.4, 0.6, 0.75, 0.85];
+      for (const pos of signalPositions) {
+        const dist = Math.abs(i / width - pos);
+        if (dist < 0.02) {
+          value += (0.5 + Math.random() * 0.5) * (1 - dist / 0.02);
         }
-
-        line.push(clamp(value, 0, 1));
       }
 
-      return line;
+      line.push(clamp(value, 0, 1));
+    }
+
+    return line;
+  }, []);
+
+  // Render waterfall line from WaterfallLine data
+  const renderWaterfallLine = useCallback(
+    (line: WaterfallLine, canvasWidth: number): number[] => {
+      if (!frequencyViewRange) return [];
+
+      const viewRange = frequencyViewRange.maxHz - frequencyViewRange.minHz;
+      const result: number[] = new Array(canvasWidth).fill(0.1);
+
+      // Map the incoming magnitudes to canvas width based on frequency range
+      for (let i = 0; i < canvasWidth; i++) {
+        const canvasFreq =
+          frequencyViewRange.minHz + (i / canvasWidth) * viewRange;
+
+        // Find corresponding magnitude from the waterfall line
+        const lineIndex = Math.floor(
+          (canvasFreq - line.freqStartHz) / line.freqStepHz,
+        );
+
+        if (
+          lineIndex >= 0 &&
+          lineIndex < line.magnitudes.length
+        ) {
+          result[i] = line.magnitudes[lineIndex];
+        }
+      }
+
+      return result;
     },
-    []
+    [frequencyViewRange],
   );
 
   // Render waterfall
@@ -119,14 +173,24 @@ export function WaterfallView() {
       // Copy rows from top to bottom (each row is width * 4 bytes for RGBA)
       const bytesPerRow = width * 4;
       const totalBytes = height * bytesPerRow;
-      
+
       // Shift all data down by one row
       imageData.data.copyWithin(bytesPerRow, 0, totalBytes - bytesPerRow);
 
-      // Generate new line at top
-      const newLine = generateNoiseLine(width);
+      // Generate or get new line at top
+      let newLine: number[];
+
+      // Check if we have data from the stream
+      if (useStreaming && lineQueueRef.current.length > 0) {
+        const streamLine = lineQueueRef.current.shift()!;
+        newLine = renderWaterfallLine(streamLine, width);
+      } else {
+        // Fallback to local generation
+        newLine = generateNoiseLine(width);
+      }
+
       for (let x = 0; x < width; x++) {
-        const [r, g, b] = getColor(newLine[x]);
+        const [r, g, b] = getColor(newLine[x] || 0);
         const idx = x * 4;
         imageData.data[idx] = r;
         imageData.data[idx + 1] = g;
@@ -163,7 +227,14 @@ export function WaterfallView() {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [getColor, generateNoiseLine, selectedFrequencyHz, frequencyViewRange]);
+  }, [
+    getColor,
+    generateNoiseLine,
+    renderWaterfallLine,
+    selectedFrequencyHz,
+    frequencyViewRange,
+    useStreaming,
+  ]);
 
   // Handle click to set frequency
   const handleClick = useCallback(
@@ -183,16 +254,16 @@ export function WaterfallView() {
 
       setSelectedFrequency(Math.round(freq));
     },
-    [frequencyViewRange, setSelectedFrequency]
+    [frequencyViewRange, setSelectedFrequency],
   );
 
   // Handle mouse wheel for zoom
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLCanvasElement>) => {
       if (!frequencyViewRange) return;
-      
+
       e.preventDefault();
-      
+
       if (e.ctrlKey || e.metaKey) {
         // Zoom with Ctrl/Cmd + scroll
         if (e.deltaY < 0) {
@@ -209,14 +280,14 @@ export function WaterfallView() {
         }
       }
     },
-    [frequencyViewRange, zoomIn, zoomOut, panLeft, panRight]
+    [frequencyViewRange, zoomIn, zoomOut, panLeft, panRight],
   );
 
   // Keyboard shortcuts for zoom/pan
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!frequencyViewRange) return;
-      
+
       // Ignore if user is typing in an input field
       if (
         e.target instanceof HTMLInputElement ||
@@ -224,7 +295,7 @@ export function WaterfallView() {
       ) {
         return;
       }
-      
+
       switch (e.key) {
         case '+':
         case '=':
@@ -290,11 +361,57 @@ export function WaterfallView() {
         </div>
       )}
 
+      {/* Stream status indicator */}
+      {frequencyViewRange && useStreaming && (
+        <div className="absolute top-10 left-2 flex items-center gap-1">
+          <div
+            className={`w-2 h-2 rounded-full ${
+              isConnected
+                ? 'bg-green-500'
+                : isConnecting
+                  ? 'bg-yellow-500 animate-pulse'
+                  : 'bg-red-500'
+            }`}
+          />
+          <span className="text-atlas-text text-xs opacity-75">
+            {isConnected ? 'Stream' : isConnecting ? 'Connecting...' : 'Local'}
+          </span>
+        </div>
+      )}
+
+      {/* Toggle streaming mode */}
+      {frequencyViewRange && (
+        <div className="absolute bottom-6 right-2">
+          <button
+            onClick={() => setUseStreaming(!useStreaming)}
+            className={`text-xs px-2 py-1 rounded ${
+              useStreaming
+                ? 'bg-atlas-accent text-white'
+                : 'bg-atlas-surface/80 text-atlas-text'
+            }`}
+            title={useStreaming ? 'Using backend stream' : 'Using local generator'}
+          >
+            {useStreaming ? '📡 Stream' : '🔧 Local'}
+          </button>
+        </div>
+      )}
+
+      {/* Stream error indicator */}
+      {streamError && useStreaming && (
+        <div className="absolute top-16 left-2 bg-red-500/80 text-white text-xs px-2 py-1 rounded">
+          {streamError}
+        </div>
+      )}
+
       {/* Frequency scale */}
       {frequencyViewRange && (
         <div className="absolute bottom-0 left-0 right-0 h-5 bg-atlas-surface/80 flex justify-between px-2 text-xs text-atlas-text">
           <span>{formatFrequency(frequencyViewRange.minHz)}</span>
-          <span>{formatFrequency((frequencyViewRange.minHz + frequencyViewRange.maxHz) / 2)}</span>
+          <span>
+            {formatFrequency(
+              (frequencyViewRange.minHz + frequencyViewRange.maxHz) / 2,
+            )}
+          </span>
           <span>{formatFrequency(frequencyViewRange.maxHz)}</span>
         </div>
       )}
@@ -306,7 +423,7 @@ export function WaterfallView() {
             Select a station to view waterfall
             <br />
             <span className="text-sm opacity-50">
-              (MVP: Using test noise generator)
+              (Click a marker on the map or select from list)
             </span>
           </p>
         </div>

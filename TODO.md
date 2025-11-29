@@ -87,10 +87,15 @@ Based on the detailed plan in `agents.md`, this document tracks implementation p
 
 ### Faza 6 – Integracja z WebSDR
 
-- [ ] Analiza 1-2 typowych instancji WebSDR
-- [ ] Implementacja `StreamingProxy` dla waterfallu
+- [x] Analiza 1-2 typowych instancji WebSDR
+- [x] Implementacja `StreamingProxy` dla waterfallu (backend module)
+- [x] SSE endpoint dla waterfall data streaming
+- [x] Station status check endpoint
+- [x] Frontend waterfall streaming hook (useWaterfallStream)
+- [x] Frontend toggle between stream/local mode
+- [x] Station online/offline status indicator
 - [ ] Podmiana testowych danych na rzeczywiste z jednej stacji
-- [ ] CORS proxy dla strumieni audio/waterfall
+- [ ] CORS proxy dla strumieni audio/waterfall (actual WebSDR integration)
 
 ### Faza 7 – Szlify i open-source ✅
 
@@ -123,6 +128,7 @@ Based on the detailed plan in `agents.md`, this document tracks implementation p
 ### Next Steps Priority
 
 1. ~~Add waterfall zoom/pan controls~~ ✅
-2. Implement actual WebSDR data streaming for one station (pilot)
-3. Add station online/offline status check
-4. Implement CORS proxy for WebSDR streams
+2. ~~Implement streaming proxy module~~ ✅
+3. ~~Add station online/offline status check~~ ✅
+4. Implement actual WebSDR data streaming for one station (pilot)
+5. Implement CORS proxy for WebSDR streams

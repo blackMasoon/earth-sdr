@@ -31,6 +31,8 @@ export class CrawlerService {
   private readonly WEBSDR_ORG_URL = 'http://websdr.org';
   private readonly REQUEST_TIMEOUT = 10000; // 10 seconds
   private readonly USER_AGENT = 'WebSDR-Atlas/1.0 (https://github.com/websdr-atlas; crawler@websdr-atlas.org)';
+  // Default bandwidth assumption for single frequency mentions (±150 kHz for HF)
+  private readonly DEFAULT_SINGLE_FREQ_BANDWIDTH_HZ = 150_000;
 
   constructor(private prisma: PrismaService) {}
 
@@ -270,16 +272,20 @@ export class CrawlerService {
       let lon = parseFloat(dmsMatch[3]);
       if (dmsMatch[2].toUpperCase() === 'S') lat = -lat;
       if (dmsMatch[4].toUpperCase() === 'W') lon = -lon;
-      return { latitude: lat, longitude: lon };
+      // Validate coordinates are in valid ranges
+      if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+        return { latitude: lat, longitude: lon };
+      }
     }
 
-    // Pattern: plain decimal coordinates
-    const decimalPattern = /(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/;
+    // Pattern: plain decimal coordinates - be more restrictive to avoid false positives
+    // Only match if the numbers look like coordinates (reasonable ranges, with decimals)
+    const decimalPattern = /(-?\d{1,3}\.\d+)[,\s]+(-?\d{1,3}\.\d+)/;
     const decimalMatch = text.match(decimalPattern);
     if (decimalMatch) {
       const lat = parseFloat(decimalMatch[1]);
       const lon = parseFloat(decimalMatch[2]);
-      // Validate ranges
+      // Validate ranges - latitude must be -90 to 90, longitude -180 to 180
       if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
         return { latitude: lat, longitude: lon };
       }
@@ -298,8 +304,7 @@ export class CrawlerService {
 
     // Pattern: range like "0-30 MHz" or "7.0-7.3 MHz"
     const rangePattern = /(\d+\.?\d*)\s*-\s*(\d+\.?\d*)\s*(MHz|kHz|GHz)/gi;
-    let match;
-    while ((match = rangePattern.exec(text)) !== null) {
+    for (const match of text.matchAll(rangePattern)) {
       const min = parseFloat(match[1]);
       const max = parseFloat(match[2]);
       const unit = match[3].toLowerCase();
@@ -310,9 +315,9 @@ export class CrawlerService {
       });
     }
 
-    // Pattern: single frequency like "7 MHz" (assume ±150kHz bandwidth)
+    // Pattern: single frequency like "7 MHz" (assume ± default bandwidth)
     const singlePattern = /(\d+\.?\d*)\s*(MHz|kHz|GHz)/gi;
-    while ((match = singlePattern.exec(text)) !== null) {
+    for (const match of text.matchAll(singlePattern)) {
       const freq = parseFloat(match[1]);
       const unit = match[2].toLowerCase();
       const multiplier = unit === 'ghz' ? 1_000_000_000 : unit === 'mhz' ? 1_000_000 : 1_000;
@@ -321,8 +326,8 @@ export class CrawlerService {
       const exists = ranges.some(r => centerHz >= r.minHz && centerHz <= r.maxHz);
       if (!exists) {
         ranges.push({
-          minHz: centerHz - 150_000,
-          maxHz: centerHz + 150_000,
+          minHz: centerHz - this.DEFAULT_SINGLE_FREQ_BANDWIDTH_HZ,
+          maxHz: centerHz + this.DEFAULT_SINGLE_FREQ_BANDWIDTH_HZ,
         });
       }
     }
@@ -343,7 +348,7 @@ export class CrawlerService {
       '6': { minHz: 50_000_000, maxHz: 54_000_000 },
       '2': { minHz: 144_000_000, maxHz: 148_000_000 },
     };
-    while ((match = bandPattern.exec(text)) !== null) {
+    for (const match of text.matchAll(bandPattern)) {
       const band = match[1];
       const bandRange = bandFrequencies[band];
       if (bandRange) {

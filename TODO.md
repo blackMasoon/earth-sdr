@@ -58,8 +58,8 @@ Based on the detailed plan in `agents.md`, this document tracks implementation p
   - [x] Canvas-based rendering
   - [x] Test noise generator
   - [x] Color palette for intensity
-  - [ ] Zoom in/out on frequency axis
-  - [ ] Pan/drag navigation
+  - [x] Zoom in/out on frequency axis
+  - [x] Pan/drag navigation
 - [x] Suwak częstotliwości (`FrequencyCursor`)
   - [x] Click to set frequency
   - [x] Keyboard navigation (← →)
@@ -95,9 +95,9 @@ Based on the detailed plan in `agents.md`, this document tracks implementation p
 ### Faza 7 – Szlify i open-source ✅
 
 - [x] README z opisem projektu
-- [ ] CONTRIBUTING.md
-- [ ] CODE_OF_CONDUCT.md
-- [ ] License file
+- [x] CONTRIBUTING.md
+- [x] CODE_OF_CONDUCT.md
+- [x] License file
 
 ---
 
@@ -115,14 +115,14 @@ Based on the detailed plan in `agents.md`, this document tracks implementation p
 
 ### Known Limitations
 
-- Waterfall doesn't zoom/pan yet (basic MVP)
+- ~~Waterfall doesn't zoom/pan yet (basic MVP)~~ ✅ Implemented
 - No audio streaming
 - No user authentication
 - Programs stored locally only
 
 ### Next Steps Priority
 
-1. Add waterfall zoom/pan controls
+1. ~~Add waterfall zoom/pan controls~~ ✅
 2. Implement actual WebSDR data streaming for one station (pilot)
 3. Add station online/offline status check
 4. Implement CORS proxy for WebSDR streams

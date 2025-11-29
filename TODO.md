@@ -25,7 +25,7 @@ Based on the detailed plan in `agents.md`, this document tracks implementation p
   - [x] `GET /api/stations` endpoint
   - [x] `GET /api/stations/{id}` endpoint
   - [x] Filtering by band, country, bounding box
-- [x] Prosty `WebsdrCrawler` 
+- [x] Prosty `WebsdrCrawler`
   - [x] Seed data z 10 przykładowymi stacjami
   - [x] `POST /api/crawler/seed` endpoint
   - [x] Actual websdr.org HTML parsing (with fallback to seed data)

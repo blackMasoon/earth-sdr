@@ -37,7 +37,7 @@ export function StationListView() {
         (station) =>
           station.name.toLowerCase().includes(query) ||
           station.countryCode?.toLowerCase().includes(query) ||
-          COUNTRY_NAMES[station.countryCode || '']?.toLowerCase().includes(query),
+          COUNTRY_NAMES[station.countryCode || '']?.toLowerCase().includes(query)
       );
     }
 
@@ -63,7 +63,7 @@ export function StationListView() {
         console.error('Failed to load station:', error);
       }
     },
-    [setSelectedStation],
+    [setSelectedStation]
   );
 
   if (isLoadingStations) {

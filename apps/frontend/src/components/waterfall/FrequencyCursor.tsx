@@ -50,13 +50,9 @@ export function FrequencyCursor() {
     <div className="bg-atlas-surface rounded-lg p-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-atlas-text opacity-75">
-            Current Frequency
-          </h3>
+          <h3 className="text-sm font-semibold text-atlas-text opacity-75">Current Frequency</h3>
           <p className="text-2xl font-mono text-atlas-text">
-            {selectedFrequencyHz
-              ? formatFrequency(selectedFrequencyHz)
-              : '-- MHz'}
+            {selectedFrequencyHz ? formatFrequency(selectedFrequencyHz) : '-- MHz'}
           </p>
         </div>
 

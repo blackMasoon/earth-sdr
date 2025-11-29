@@ -9,7 +9,7 @@ export class PropagationController {
   async getPropagation(
     @Query('lat') lat: string,
     @Query('lon') lon: string,
-    @Query('freqs') freqs?: string,
+    @Query('freqs') freqs?: string
   ) {
     const latitude = parseFloat(lat);
     const longitude = parseFloat(lon);
@@ -19,7 +19,7 @@ export class PropagationController {
     }
 
     const frequencies = freqs
-      ? freqs.split(',').map(f => parseInt(f, 10))
+      ? freqs.split(',').map((f) => parseInt(f, 10))
       : this.propagationService.getDefaultFrequencies();
 
     return this.propagationService.getRingsForStation(latitude, longitude, frequencies);

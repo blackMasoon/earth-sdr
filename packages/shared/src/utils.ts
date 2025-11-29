@@ -1,6 +1,6 @@
 /**
  * WebSDR Atlas - Shared Utilities
- * 
+ *
  * Common utility functions used across the application.
  */
 
@@ -28,14 +28,14 @@ export function formatFrequency(hz: FrequencyHz): string {
 export function parseFrequency(freqStr: string): FrequencyHz | null {
   const normalized = freqStr.toLowerCase().trim();
   const match = normalized.match(/^([\d.]+)\s*(ghz|mhz|khz|hz)?$/);
-  
+
   if (!match) return null;
-  
+
   const value = parseFloat(match[1]);
   if (isNaN(value)) return null;
-  
+
   const unit = match[2] || 'hz';
-  
+
   switch (unit) {
     case 'ghz':
       return value * 1_000_000_000;
@@ -63,12 +63,7 @@ export function getFrequencyBand(hz: FrequencyHz): FrequencyBand | null {
 /**
  * Calculate distance between two coordinates in km (Haversine formula)
  */
-export function calculateDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
+export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Earth's radius in km
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);

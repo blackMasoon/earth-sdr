@@ -1,6 +1,7 @@
 # WebSDR Atlas – szczegółowy plan implementacji
 
 Webowa aplikacja agregująca wszystkie dostępne WebSDR-y z całego świata, z:
+
 - mapą (OSM) z wyborem SDR-ów,
 - listą alternatywną,
 - szacowanym zasięgiem dla zakresów częstotliwości (okręgi),
@@ -245,7 +246,7 @@ export interface SavedProgram {
        - optional: `freqs=7000000,14000000,28000000` itp.
        - odp: lista `PropagationRing`.
    - Implementacja MVP:
-     - na początek *prosty model*:
+     - na początek _prosty model_:
        - dla HF oblicz promień wg uproszczonych zasad (np. funkcje/konfiguracja),
        - później podmiana na zewnętrzne API (VOACAP/inne).
      - konfiguracja i łatwa podmiana implementacji.
@@ -499,7 +500,7 @@ interface UiState {
 
 - **Faza 1:**
   - tylko metadane + link „Otwórz WebSDR w nowej karcie”.
-  - nasz waterfall jest *testowy* – np. tylko dla kilku stacji, które mają znaną strukturę API.
+  - nasz waterfall jest _testowy_ – np. tylko dla kilku stacji, które mają znaną strukturę API.
 - **Faza 2:**
   - analiza typowego WebSDR,
   - stworzenie adaptera, który:

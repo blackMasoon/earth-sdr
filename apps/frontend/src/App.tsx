@@ -44,10 +44,7 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if user is typing in an input field
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
 
@@ -105,9 +102,7 @@ function App() {
             </button>
           </div>
 
-          <span className="text-xs text-atlas-text opacity-50">
-            Press M to toggle view
-          </span>
+          <span className="text-xs text-atlas-text opacity-50">Press M to toggle view</span>
         </div>
       </header>
 
@@ -156,7 +151,8 @@ function App() {
         <div className="flex justify-between">
           <span>WebSDR Atlas v0.1.0 - Open Source Project</span>
           <span>
-            Keyboard: M = Toggle Map/List | ←/→ = Tune | S = Save program | +/- = Zoom | 0 = Reset zoom
+            Keyboard: M = Toggle Map/List | ←/→ = Tune | S = Save program | +/- = Zoom | 0 = Reset
+            zoom
           </span>
         </div>
       </footer>

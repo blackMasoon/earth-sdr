@@ -1,6 +1,6 @@
 /**
  * WebSDR Atlas - Shared Types
- * 
+ *
  * This package contains all shared TypeScript types used across
  * the backend and frontend applications.
  */

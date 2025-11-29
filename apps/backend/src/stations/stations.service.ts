@@ -1,7 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GetStationsQueryDto } from './dto';
-import { FREQUENCY_BANDS, FrequencyBand, WebSdrStation, WebSdrStationListItem } from '@websdr-atlas/shared';
+import {
+  FREQUENCY_BANDS,
+  FrequencyBand,
+  WebSdrStation,
+  WebSdrStationListItem,
+} from '@websdr-atlas/shared';
 
 @Injectable()
 export class StationsService {
@@ -24,10 +29,7 @@ export class StationsService {
     }
 
     if (search) {
-      where.OR = [
-        { name: { contains: search } },
-        { description: { contains: search } },
-      ];
+      where.OR = [{ name: { contains: search } }, { description: { contains: search } }];
     }
 
     // Bounding box filter
@@ -47,14 +49,14 @@ export class StationsService {
     // Filter by frequency band if specified
     if (band && FREQUENCY_BANDS[band as FrequencyBand]) {
       const bandRange = FREQUENCY_BANDS[band as FrequencyBand];
-      stations = stations.filter(station =>
+      stations = stations.filter((station) =>
         station.ranges.some(
-          range => range.minHz <= bandRange.maxHz && range.maxHz >= bandRange.minHz
+          (range) => range.minHz <= bandRange.maxHz && range.maxHz >= bandRange.minHz
         )
       );
     }
 
-    return stations.map(station => ({
+    return stations.map((station) => ({
       id: station.id,
       name: station.name,
       url: station.url,
@@ -85,7 +87,7 @@ export class StationsService {
       latitude: station.latitude,
       longitude: station.longitude,
       countryCode: station.countryCode || undefined,
-      frequencyRanges: station.ranges.map(r => ({
+      frequencyRanges: station.ranges.map((r) => ({
         minHz: r.minHz,
         maxHz: r.maxHz,
       })),

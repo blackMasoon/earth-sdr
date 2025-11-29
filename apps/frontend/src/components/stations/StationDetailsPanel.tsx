@@ -49,9 +49,7 @@ export function StationDetailsPanel() {
   if (!selectedStation) {
     return (
       <div className="bg-atlas-surface rounded-lg p-4 text-atlas-text">
-        <p className="text-center text-sm opacity-75">
-          Select a station to view details
-        </p>
+        <p className="text-center text-sm opacity-75">Select a station to view details</p>
       </div>
     );
   }
@@ -102,10 +100,7 @@ export function StationDetailsPanel() {
         <h3 className="font-semibold mb-2">Frequency Ranges</h3>
         <div className="flex flex-wrap gap-2">
           {selectedStation.frequencyRanges.map((range, index) => (
-            <span
-              key={index}
-              className="bg-atlas-border px-3 py-1 rounded text-sm"
-            >
+            <span key={index} className="bg-atlas-border px-3 py-1 rounded text-sm">
               {formatFrequency(range.minHz)} - {formatFrequency(range.maxHz)}
             </span>
           ))}
@@ -117,10 +112,7 @@ export function StationDetailsPanel() {
           <h3 className="font-semibold mb-2">Modes</h3>
           <div className="flex flex-wrap gap-2">
             {selectedStation.modes.map((mode, index) => (
-              <span
-                key={index}
-                className="bg-atlas-border px-2 py-1 rounded text-xs"
-              >
+              <span key={index} className="bg-atlas-border px-2 py-1 rounded text-xs">
                 {mode}
               </span>
             ))}
@@ -130,8 +122,7 @@ export function StationDetailsPanel() {
 
       <div className="mt-4 pt-4 border-t border-atlas-border text-xs opacity-50">
         <p>
-          Coordinates: {selectedStation.latitude.toFixed(4)},{' '}
-          {selectedStation.longitude.toFixed(4)}
+          Coordinates: {selectedStation.latitude.toFixed(4)}, {selectedStation.longitude.toFixed(4)}
         </p>
         <p>Source: {selectedStation.rawListingSource}</p>
         {stationStatus.online && stationStatus.latencyMs && (

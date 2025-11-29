@@ -128,10 +128,7 @@ class KiwiSdrAdapter implements WebSdrAdapter {
 @Injectable()
 export class StreamingService {
   private readonly logger = new Logger(StreamingService.name);
-  private readonly adapters: WebSdrAdapter[] = [
-    new KiwiSdrAdapter(),
-    new StandardWebSdrAdapter(),
-  ];
+  private readonly adapters: WebSdrAdapter[] = [new KiwiSdrAdapter(), new StandardWebSdrAdapter()];
 
   constructor(private prisma: PrismaService) {}
 
@@ -193,7 +190,7 @@ export class StreamingService {
   async getAudioStreamInfo(
     stationId: string,
     frequencyHz: number,
-    mode: string,
+    mode: string
   ): Promise<{
     url: string;
     proxyUrl: string;
@@ -279,7 +276,7 @@ export class StreamingService {
   generateSimulatedWaterfallLine(
     freqStartHz: number,
     freqEndHz: number,
-    numBins: number,
+    numBins: number
   ): WaterfallLine {
     const magnitudes: number[] = [];
     const freqStepHz = (freqEndHz - freqStartHz) / numBins;

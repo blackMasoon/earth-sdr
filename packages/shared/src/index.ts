@@ -1,6 +1,6 @@
 /**
  * WebSDR Atlas - Shared Package
- * 
+ *
  * Exports all types and utilities for use in backend and frontend.
  */
 

@@ -136,4 +136,4 @@ Based on the detailed plan in `agents.md`, this document tracks implementation p
 4. ~~Implement actual WebSDR data streaming for one station (pilot)~~ ✅
 5. Implement audio streaming proxy
 6. Integrate with VOACAP for better propagation predictions
-5. Implement CORS proxy for WebSDR streams
+7. Implement CORS proxy for WebSDR streams

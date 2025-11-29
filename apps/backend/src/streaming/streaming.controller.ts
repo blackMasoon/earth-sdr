@@ -81,15 +81,21 @@ export class StreamingController {
       switchMap(() => {
         if (attemptRealData) {
           // Try to get real data, fall back to simulated
-          return from(this.streamingService.getWaterfallLine(stationId, freqMin, freqMax, numBins)).pipe(
+          return from(
+            this.streamingService.getWaterfallLine(stationId, freqMin, freqMax, numBins)
+          ).pipe(
             catchError(() => {
               // On error, return simulated data
-              return of(this.streamingService.generateSimulatedWaterfallLine(freqMin, freqMax, numBins));
+              return of(
+                this.streamingService.generateSimulatedWaterfallLine(freqMin, freqMax, numBins)
+              );
             })
           );
         } else {
           // Use simulated data directly
-          return of(this.streamingService.generateSimulatedWaterfallLine(freqMin, freqMax, numBins));
+          return of(
+            this.streamingService.generateSimulatedWaterfallLine(freqMin, freqMax, numBins)
+          );
         }
       }),
       map((line) => ({

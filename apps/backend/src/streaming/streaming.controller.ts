@@ -15,7 +15,7 @@ import { StreamingService } from './streaming.service';
  * without CORS issues, as the browser connects to our backend
  * which then proxies requests to the actual WebSDR servers.
  */
-@Controller('api/streaming')
+@Controller('streaming')
 export class StreamingController {
   private readonly logger = new Logger(StreamingController.name);
 

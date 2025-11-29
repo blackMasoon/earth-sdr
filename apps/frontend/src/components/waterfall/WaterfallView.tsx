@@ -201,11 +201,11 @@ export function WaterfallView() {
           zoomOut();
         }
       } else {
-        // Pan with regular scroll
-        if (e.deltaY < 0 || e.deltaX < 0) {
-          panLeft();
-        } else {
+        // Pan with regular scroll (scroll down/right = pan right to higher frequencies)
+        if (e.deltaY > 0 || e.deltaX > 0) {
           panRight();
+        } else {
+          panLeft();
         }
       }
     },
@@ -216,6 +216,14 @@ export function WaterfallView() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!frequencyViewRange) return;
+      
+      // Ignore if user is typing in an input field
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
       
       switch (e.key) {
         case '+':

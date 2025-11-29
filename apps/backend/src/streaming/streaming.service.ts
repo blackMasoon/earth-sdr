@@ -25,11 +25,20 @@ export interface WebSdrAdapter {
    * Parse waterfall data from raw response
    */
   parseWaterfallData(data: Buffer): WaterfallLine | null;
+
+  /**
+   * Get the expected content type for waterfall data
+   */
+  getWaterfallContentType(): string;
 }
 
 /**
  * Default adapter for standard WebSDR instances (PA3FWM type)
  * Most WebSDRs use a similar JavaScript-based protocol
+ *
+ * The standard WebSDR uses AJAX requests to fetch waterfall data:
+ * - GET /~~waterfallheader - returns metadata about the waterfall
+ * - GET /~~waterfall?... - returns actual FFT data as binary
  */
 class StandardWebSdrAdapter implements WebSdrAdapter {
   canHandle(url: string): boolean {
@@ -39,9 +48,9 @@ class StandardWebSdrAdapter implements WebSdrAdapter {
 
   getWaterfallUrl(baseUrl: string): string {
     // Standard WebSDR waterfall endpoint
-    // Format: baseUrl/~~waterfalldata?...
+    // Format: baseUrl/~~waterfallheader for initial config
     const cleanUrl = baseUrl.replace(/\/$/, '');
-    return `${cleanUrl}/~~waterfall`;
+    return `${cleanUrl}/~~waterfallheader`;
   }
 
   getAudioUrl(baseUrl: string, frequencyHz: number, mode: string): string {
@@ -50,6 +59,10 @@ class StandardWebSdrAdapter implements WebSdrAdapter {
     const cleanUrl = baseUrl.replace(/\/$/, '');
     const freqKHz = Math.round(frequencyHz / 1000);
     return `${cleanUrl}/~~audiostream?f=${freqKHz}&mode=${mode.toLowerCase()}`;
+  }
+
+  getWaterfallContentType(): string {
+    return 'application/octet-stream';
   }
 
   parseWaterfallData(data: Buffer): WaterfallLine | null {
@@ -96,6 +109,10 @@ class KiwiSdrAdapter implements WebSdrAdapter {
     return `${cleanUrl}/kiwi/audio?f=${freqKHz}&mode=${mode}`;
   }
 
+  getWaterfallContentType(): string {
+    return 'application/octet-stream';
+  }
+
   parseWaterfallData(data: Buffer): WaterfallLine | null {
     // KiwiSDR protocol parsing - simplified
     // Actual implementation would need full WebSocket protocol handling
@@ -117,6 +134,21 @@ class KiwiSdrAdapter implements WebSdrAdapter {
 }
 
 /**
+ * Cached waterfall header info from WebSDR
+ */
+interface WaterfallHeader {
+  bands: Array<{
+    name: string;
+    startHz: number;
+    endHz: number;
+    startPixel: number;
+    endPixel: number;
+  }>;
+  totalWidth: number;
+  fetchedAt: number;
+}
+
+/**
  * StreamingService - Handles proxying and transforming WebSDR data streams
  *
  * This service provides:
@@ -124,11 +156,33 @@ class KiwiSdrAdapter implements WebSdrAdapter {
  * 2. Adapters for different WebSDR types
  * 3. Data transformation and normalization
  * 4. Connection management and caching
+ * 5. Real waterfall data fetching from WebSDR instances
  */
 @Injectable()
 export class StreamingService {
   private readonly logger = new Logger(StreamingService.name);
   private readonly adapters: WebSdrAdapter[] = [new KiwiSdrAdapter(), new StandardWebSdrAdapter()];
+  private readonly waterfallHeaderCache = new Map<string, WaterfallHeader>();
+
+  // Constants for cache and data validation
+  private readonly HEADER_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+  /**
+   * Minimum data length for valid waterfall response.
+   * WebSDR waterfall data typically contains at least a few FFT bins.
+   * A response smaller than this is likely an error or empty response.
+   */
+  private readonly MIN_WATERFALL_DATA_LENGTH = 10;
+
+  /**
+   * WebSDR dB scale conversion constants.
+   * WebSDR sends FFT data as unsigned 8-bit values (0-255) representing dB scale.
+   * DB_OFFSET: The midpoint value representing 0 dB (128 = center of 0-255 range)
+   * DB_RANGE: The dynamic range divisor for converting to linear scale
+   *           Using 40 dB range gives good visual contrast for radio signals
+   */
+  private readonly DB_OFFSET = 128;
+  private readonly DB_RANGE = 40;
 
   constructor(private prisma: PrismaService) {}
 
@@ -142,6 +196,192 @@ export class StreamingService {
       }
     }
     return null;
+  }
+
+  /**
+   * Fetch waterfall header/configuration from a WebSDR
+   * This contains band information and pixel mappings
+   */
+  async fetchWaterfallHeader(stationUrl: string): Promise<WaterfallHeader | null> {
+    // Check cache first
+    const cached = this.waterfallHeaderCache.get(stationUrl);
+    if (cached && Date.now() - cached.fetchedAt < this.HEADER_CACHE_TTL_MS) {
+      return cached;
+    }
+
+    try {
+      const cleanUrl = stationUrl.replace(/\/$/, '');
+      const headerUrl = `${cleanUrl}/~~waterfallheader`;
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(headerUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'WebSDR-Atlas/1.0',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        this.logger.warn(`Failed to fetch waterfall header from ${headerUrl}: ${response.status}`);
+        return null;
+      }
+
+      const text = await response.text();
+      const header = this.parseWaterfallHeader(text);
+
+      if (header) {
+        this.waterfallHeaderCache.set(stationUrl, header);
+      }
+
+      return header;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Error fetching waterfall header from ${stationUrl}: ${errorMessage}`);
+      return null;
+    }
+  }
+
+  /**
+   * Parse waterfall header response
+   * Format varies by WebSDR version, but typically contains band info
+   */
+  private parseWaterfallHeader(text: string): WaterfallHeader | null {
+    try {
+      // The waterfall header is typically JavaScript that sets variables
+      // We'll parse the common patterns
+
+      const bands: WaterfallHeader['bands'] = [];
+      let totalWidth = 1024; // Default
+
+      // Look for band definitions
+      // Common patterns:
+      // - band_name[n] = "80m"; band_low[n] = 3500; band_high[n] = 3800;
+      // - Or JSON-like structure
+
+      // Extract band names
+      const bandNameMatches = text.matchAll(/band_name\[(\d+)\]\s*=\s*["']([^"']+)["']/g);
+      const bandNames: Record<number, string> = {};
+      for (const match of bandNameMatches) {
+        bandNames[parseInt(match[1])] = match[2];
+      }
+
+      // Extract band frequencies
+      const bandLowMatches = text.matchAll(/band_low\[(\d+)\]\s*=\s*(\d+)/g);
+      const bandHighMatches = text.matchAll(/band_high\[(\d+)\]\s*=\s*(\d+)/g);
+      const bandLows: Record<number, number> = {};
+      const bandHighs: Record<number, number> = {};
+
+      for (const match of bandLowMatches) {
+        bandLows[parseInt(match[1])] = parseInt(match[2]) * 1000; // kHz to Hz
+      }
+      for (const match of bandHighMatches) {
+        bandHighs[parseInt(match[1])] = parseInt(match[2]) * 1000; // kHz to Hz
+      }
+
+      // Combine into bands array
+      const indices = Object.keys(bandNames).map(Number);
+      for (const idx of indices) {
+        if (bandLows[idx] !== undefined && bandHighs[idx] !== undefined) {
+          bands.push({
+            name: bandNames[idx] || `Band ${idx}`,
+            startHz: bandLows[idx],
+            endHz: bandHighs[idx],
+            startPixel: 0, // Will be calculated
+            endPixel: 0, // Will be calculated
+          });
+        }
+      }
+
+      // Look for total width
+      const widthMatch = text.match(/totbw\s*=\s*(\d+)/);
+      if (widthMatch) {
+        totalWidth = parseInt(widthMatch[1]);
+      }
+
+      return {
+        bands,
+        totalWidth,
+        fetchedAt: Date.now(),
+      };
+    } catch (error) {
+      this.logger.warn(`Failed to parse waterfall header: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch actual waterfall data from a WebSDR
+   * This makes a proxied request to get the FFT data
+   */
+  async fetchWaterfallData(
+    stationUrl: string,
+    minHz: number,
+    maxHz: number
+  ): Promise<WaterfallLine | null> {
+    try {
+      const cleanUrl = stationUrl.replace(/\/$/, '');
+
+      // Convert Hz to kHz for the WebSDR API
+      const minKHz = Math.floor(minHz / 1000);
+      const maxKHz = Math.ceil(maxHz / 1000);
+      const width = 512; // Number of FFT bins to request
+
+      // Standard WebSDR waterfall data URL format
+      const waterfallUrl = `${cleanUrl}/~~waterfall?lo=${minKHz}&hi=${maxKHz}&w=${width}`;
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+
+      const response = await fetch(waterfallUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'WebSDR-Atlas/1.0',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const data = Buffer.from(arrayBuffer);
+
+      if (data.length < this.MIN_WATERFALL_DATA_LENGTH) {
+        return null;
+      }
+
+      // Parse the waterfall data
+      // Standard WebSDR format: binary FFT magnitudes in dB scale
+      const magnitudes: number[] = [];
+      for (let i = 0; i < data.length; i++) {
+        // Convert from dB scale (0-255) to linear (0-1)
+        // Using DB_OFFSET and DB_RANGE constants for the conversion formula
+        const dbValue = data[i];
+        const linear = Math.pow(10, (dbValue - this.DB_OFFSET) / this.DB_RANGE);
+        magnitudes.push(Math.min(1.0, Math.max(0, linear)));
+      }
+
+      const freqStepHz = (maxHz - minHz) / magnitudes.length;
+
+      return {
+        timestamp: Date.now(),
+        freqStartHz: minHz,
+        freqStepHz,
+        magnitudes,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.debug(`Failed to fetch waterfall data: ${errorMessage}`);
+      return null;
+    }
   }
 
   /**
@@ -267,6 +507,31 @@ export class StreamingService {
         error: errorMessage,
       };
     }
+  }
+
+  /**
+   * Try to get real waterfall data from a station, fall back to simulated
+   */
+  async getWaterfallLine(
+    stationId: string,
+    minHz: number,
+    maxHz: number,
+    numBins: number
+  ): Promise<WaterfallLine> {
+    const station = await this.prisma.station.findUnique({
+      where: { id: stationId },
+    });
+
+    if (station) {
+      // Try to fetch real data
+      const realData = await this.fetchWaterfallData(station.url, minHz, maxHz);
+      if (realData) {
+        return realData;
+      }
+    }
+
+    // Fall back to simulated data
+    return this.generateSimulatedWaterfallLine(minHz, maxHz, numBins);
   }
 
   /**

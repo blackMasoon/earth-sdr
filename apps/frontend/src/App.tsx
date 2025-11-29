@@ -11,6 +11,9 @@ function App() {
   const setViewMode = useAppStore((state) => state.setViewMode);
   const setStations = useAppStore((state) => state.setStations);
   const setIsLoadingStations = useAppStore((state) => state.setIsLoadingStations);
+  const selectedStation = useAppStore((state) => state.selectedStation);
+  const selectedFrequencyHz = useAppStore((state) => state.selectedFrequencyHz);
+  const setIsSaveDialogOpen = useAppStore((state) => state.setIsSaveDialogOpen);
 
   // Load stations on mount
   useEffect(() => {
@@ -40,14 +43,31 @@ function App() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'm' || e.key === 'M') {
-        setViewMode(viewMode === 'map' ? 'list' : 'map');
+      // Ignore if user is typing in an input field
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      switch (e.key.toLowerCase()) {
+        case 'm':
+          setViewMode(viewMode === 'map' ? 'list' : 'map');
+          break;
+        case 's':
+          // Open save program dialog if station and frequency are selected
+          if (selectedStation && selectedFrequencyHz) {
+            e.preventDefault();
+            setIsSaveDialogOpen(true);
+          }
+          break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [viewMode, setViewMode]);
+  }, [viewMode, setViewMode, selectedStation, selectedFrequencyHz, setIsSaveDialogOpen]);
 
   return (
     <div className="h-screen w-screen bg-atlas-bg flex flex-col overflow-hidden">
@@ -136,7 +156,7 @@ function App() {
         <div className="flex justify-between">
           <span>WebSDR Atlas v0.1.0 - Open Source Project</span>
           <span>
-            Keyboard: M = Toggle Map/List | ←/→ = Tune frequency | S = Save program
+            Keyboard: M = Toggle Map/List | ←/→ = Tune | S = Save program | +/- = Zoom | 0 = Reset zoom
           </span>
         </div>
       </footer>

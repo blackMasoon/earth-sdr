@@ -1,11 +1,12 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/store';
-import { clamp } from '@websdr-atlas/shared';
+import { clamp, formatFrequency } from '@websdr-atlas/shared';
 
 /**
  * WaterfallView component
  * 
  * MVP implementation with test noise generator.
+ * Supports zoom and pan via scroll wheel and keyboard.
  * TODO: Replace with real WebSDR data stream integration.
  */
 export function WaterfallView() {
@@ -17,6 +18,12 @@ export function WaterfallView() {
   const frequencyViewRange = useAppStore((state) => state.frequencyViewRange);
   const selectedFrequencyHz = useAppStore((state) => state.selectedFrequencyHz);
   const setSelectedFrequency = useAppStore((state) => state.setSelectedFrequency);
+  const zoomLevel = useAppStore((state) => state.zoomLevel);
+  const zoomIn = useAppStore((state) => state.zoomIn);
+  const zoomOut = useAppStore((state) => state.zoomOut);
+  const panLeft = useAppStore((state) => state.panLeft);
+  const panRight = useAppStore((state) => state.panRight);
+  const resetZoom = useAppStore((state) => state.resetZoom);
 
   // Color palette for waterfall (intensity to color)
   const getColor = useCallback((intensity: number): [number, number, number] => {
@@ -179,14 +186,118 @@ export function WaterfallView() {
     [frequencyViewRange, setSelectedFrequency]
   );
 
+  // Handle mouse wheel for zoom
+  const handleWheel = useCallback(
+    (e: React.WheelEvent<HTMLCanvasElement>) => {
+      if (!frequencyViewRange) return;
+      
+      e.preventDefault();
+      
+      if (e.ctrlKey || e.metaKey) {
+        // Zoom with Ctrl/Cmd + scroll
+        if (e.deltaY < 0) {
+          zoomIn();
+        } else {
+          zoomOut();
+        }
+      } else {
+        // Pan with regular scroll (scroll down/right = pan right to higher frequencies)
+        if (e.deltaY > 0 || e.deltaX > 0) {
+          panRight();
+        } else {
+          panLeft();
+        }
+      }
+    },
+    [frequencyViewRange, zoomIn, zoomOut, panLeft, panRight]
+  );
+
+  // Keyboard shortcuts for zoom/pan
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!frequencyViewRange) return;
+      
+      // Ignore if user is typing in an input field
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+      
+      switch (e.key) {
+        case '+':
+        case '=':
+          e.preventDefault();
+          zoomIn();
+          break;
+        case '-':
+          e.preventDefault();
+          zoomOut();
+          break;
+        case '0':
+          e.preventDefault();
+          resetZoom();
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [frequencyViewRange, zoomIn, zoomOut, resetZoom]);
+
   return (
     <div ref={containerRef} className="h-full w-full relative">
       <canvas
         ref={canvasRef}
         onClick={handleClick}
+        onWheel={handleWheel}
         className="waterfall-canvas cursor-crosshair"
         style={{ width: '100%', height: '100%' }}
       />
+
+      {/* Zoom controls overlay */}
+      {frequencyViewRange && (
+        <div className="absolute top-2 right-2 flex flex-col gap-1">
+          <button
+            onClick={zoomIn}
+            className="bg-atlas-surface/80 hover:bg-atlas-border text-atlas-text w-8 h-8 rounded flex items-center justify-center text-lg"
+            title="Zoom In (+)"
+          >
+            +
+          </button>
+          <button
+            onClick={zoomOut}
+            className="bg-atlas-surface/80 hover:bg-atlas-border text-atlas-text w-8 h-8 rounded flex items-center justify-center text-lg"
+            title="Zoom Out (-)"
+          >
+            −
+          </button>
+          <button
+            onClick={resetZoom}
+            className="bg-atlas-surface/80 hover:bg-atlas-border text-atlas-text w-8 h-8 rounded flex items-center justify-center text-xs"
+            title="Reset Zoom (0)"
+          >
+            1:1
+          </button>
+        </div>
+      )}
+
+      {/* Zoom level indicator */}
+      {frequencyViewRange && zoomLevel > 1 && (
+        <div className="absolute top-2 left-2 bg-atlas-surface/80 text-atlas-text text-xs px-2 py-1 rounded">
+          {zoomLevel.toFixed(1)}x zoom
+        </div>
+      )}
+
+      {/* Frequency scale */}
+      {frequencyViewRange && (
+        <div className="absolute bottom-0 left-0 right-0 h-5 bg-atlas-surface/80 flex justify-between px-2 text-xs text-atlas-text">
+          <span>{formatFrequency(frequencyViewRange.minHz)}</span>
+          <span>{formatFrequency((frequencyViewRange.minHz + frequencyViewRange.maxHz) / 2)}</span>
+          <span>{formatFrequency(frequencyViewRange.maxHz)}</span>
+        </div>
+      )}
 
       {/* Placeholder message if no station selected */}
       {!frequencyViewRange && (

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAppStore } from '@/store';
 import { formatFrequency, PROGRAM_COLORS, generateId } from '@websdr-atlas/shared';
 import type { SavedProgram } from '@websdr-atlas/shared';
@@ -10,10 +10,19 @@ export function SavedProgramsList() {
   const setSelectedFrequency = useAppStore((state) => state.setSelectedFrequency);
   const addProgram = useAppStore((state) => state.addProgram);
   const deleteProgram = useAppStore((state) => state.deleteProgram);
+  const isSaveDialogOpen = useAppStore((state) => state.isSaveDialogOpen);
+  const setIsSaveDialogOpen = useAppStore((state) => state.setIsSaveDialogOpen);
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newProgramName, setNewProgramName] = useState('');
   const [newProgramColor, setNewProgramColor] = useState<string>(PROGRAM_COLORS[0]);
+
+  // Reset form when dialog opens
+  useEffect(() => {
+    if (isSaveDialogOpen) {
+      setNewProgramName('');
+      setNewProgramColor(PROGRAM_COLORS[0]);
+    }
+  }, [isSaveDialogOpen]);
 
   const handleSaveProgram = useCallback(() => {
     if (!selectedStation || !selectedFrequencyHz || !newProgramName.trim()) return;
@@ -30,8 +39,8 @@ export function SavedProgramsList() {
 
     addProgram(program);
     setNewProgramName('');
-    setIsDialogOpen(false);
-  }, [selectedStation, selectedFrequencyHz, newProgramName, newProgramColor, addProgram]);
+    setIsSaveDialogOpen(false);
+  }, [selectedStation, selectedFrequencyHz, newProgramName, newProgramColor, addProgram, setIsSaveDialogOpen]);
 
   // Filter programs for current station
   const currentStationPrograms = selectedStation
@@ -43,7 +52,7 @@ export function SavedProgramsList() {
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-semibold text-atlas-text">Saved Programs</h3>
         <button
-          onClick={() => setIsDialogOpen(true)}
+          onClick={() => setIsSaveDialogOpen(true)}
           disabled={!selectedStation || !selectedFrequencyHz}
           className="bg-atlas-accent hover:bg-atlas-accent-hover disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded text-white text-sm transition-colors"
         >
@@ -90,7 +99,7 @@ export function SavedProgramsList() {
       )}
 
       {/* Save Program Dialog */}
-      {isDialogOpen && (
+      {isSaveDialogOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-atlas-surface rounded-lg p-6 w-96">
             <h3 className="text-xl font-bold text-atlas-text mb-4">Save Program</h3>
@@ -104,6 +113,13 @@ export function SavedProgramsList() {
                 placeholder="e.g., 40m FT8 EU"
                 className="w-full bg-atlas-bg border border-atlas-border rounded px-3 py-2 text-atlas-text"
                 autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newProgramName.trim()) {
+                    handleSaveProgram();
+                  } else if (e.key === 'Escape') {
+                    setIsSaveDialogOpen(false);
+                  }
+                }}
               />
             </div>
 
@@ -131,7 +147,7 @@ export function SavedProgramsList() {
 
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => setIsDialogOpen(false)}
+                onClick={() => setIsSaveDialogOpen(false)}
                 className="px-4 py-2 rounded text-atlas-text hover:bg-atlas-border transition-colors"
               >
                 Cancel

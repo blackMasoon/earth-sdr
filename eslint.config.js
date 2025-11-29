@@ -1,19 +1,19 @@
-import js from "@eslint/js";
+import js from '@eslint/js';
 
 export default [
   js.configs.recommended,
   {
-    ignores: ["**/dist/**", "**/node_modules/**", "**/coverage/**"],
+    ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**'],
   },
   {
-    files: ["**/*.ts", "**/*.tsx"],
+    files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
       ecmaVersion: 2022,
-      sourceType: "module",
+      sourceType: 'module',
     },
     rules: {
-      "no-unused-vars": "off", // TypeScript handles this
-      "no-undef": "off", // TypeScript handles this
+      'no-unused-vars': 'off', // TypeScript handles this
+      'no-undef': 'off', // TypeScript handles this
     },
   },
 ];

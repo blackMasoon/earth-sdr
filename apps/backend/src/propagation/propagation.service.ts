@@ -9,13 +9,13 @@ export interface IPropagationProvider {
   getRingsForStation(
     stationLat: number,
     stationLon: number,
-    freqsHz: FrequencyHz[],
+    freqsHz: FrequencyHz[]
   ): Promise<PropagationRing[]>;
 }
 
 /**
  * Simple propagation model for MVP
- * 
+ *
  * This is a very simplified model based on general HF propagation characteristics.
  * In production, this should be replaced with real propagation prediction APIs.
  */
@@ -27,12 +27,12 @@ export class PropagationService implements IPropagationProvider {
   async getRingsForStation(
     stationLat: number,
     stationLon: number,
-    freqsHz: FrequencyHz[],
+    freqsHz: FrequencyHz[]
   ): Promise<PropagationRing[]> {
     const currentHour = new Date().getUTCHours();
     const isDay = currentHour >= 6 && currentHour <= 18;
 
-    return freqsHz.map(freq => ({
+    return freqsHz.map((freq) => ({
       centerLat: stationLat,
       centerLon: stationLon,
       frequencyHz: freq,
@@ -43,12 +43,12 @@ export class PropagationService implements IPropagationProvider {
 
   /**
    * Estimate propagation radius based on frequency and time of day
-   * 
+   *
    * This is a very simplified model:
    * - Lower frequencies (160m-80m): Better at night, shorter range
    * - Middle frequencies (40m-20m): Good day/night, medium-long range
    * - Higher frequencies (15m-10m): Better during day, longer range when open
-   * 
+   *
    * TODO: Replace with proper propagation model or external API
    */
   private estimateRadius(freqHz: FrequencyHz, isDay: boolean): number {

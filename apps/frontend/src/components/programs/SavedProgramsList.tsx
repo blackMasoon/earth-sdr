@@ -40,7 +40,14 @@ export function SavedProgramsList() {
     addProgram(program);
     setNewProgramName('');
     setIsSaveDialogOpen(false);
-  }, [selectedStation, selectedFrequencyHz, newProgramName, newProgramColor, addProgram, setIsSaveDialogOpen]);
+  }, [
+    selectedStation,
+    selectedFrequencyHz,
+    newProgramName,
+    newProgramColor,
+    addProgram,
+    setIsSaveDialogOpen,
+  ]);
 
   // Filter programs for current station
   const currentStationPrograms = selectedStation
@@ -131,9 +138,7 @@ export function SavedProgramsList() {
                     key={color}
                     onClick={() => setNewProgramColor(color)}
                     className={`w-8 h-8 rounded-full border-2 transition-transform ${
-                      newProgramColor === color
-                        ? 'border-white scale-110'
-                        : 'border-transparent'
+                      newProgramColor === color ? 'border-white scale-110' : 'border-transparent'
                     }`}
                     style={{ backgroundColor: color }}
                   />

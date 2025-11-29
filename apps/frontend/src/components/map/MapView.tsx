@@ -78,12 +78,7 @@ export function MapView() {
 
   return (
     <div className="h-full w-full">
-      <MapContainer
-        center={[30, 0]}
-        zoom={2}
-        className="h-full w-full"
-        worldCopyJump={true}
-      >
+      <MapContainer center={[30, 0]} zoom={2} className="h-full w-full" worldCopyJump={true}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -120,11 +115,7 @@ export function MapView() {
           <Marker
             key={station.id}
             position={[station.latitude, station.longitude]}
-            icon={
-              selectedStation?.id === station.id
-                ? selectedStationIcon
-                : stationIcon
-            }
+            icon={selectedStation?.id === station.id ? selectedStationIcon : stationIcon}
             eventHandlers={{
               click: () => handleStationClick(station.id),
             }}

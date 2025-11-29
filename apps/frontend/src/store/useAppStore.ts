@@ -68,13 +68,13 @@ function calculateZoomedRange(
 ): FrequencyViewRange {
   const fullRangeHz = fullRange.maxHz - fullRange.minHz;
   const newRangeHz = fullRangeHz / newZoomLevel;
-  
+
   // Center zoom on provided frequency or view center
   const center = centerHz ?? (currentRange.minHz + currentRange.maxHz) / 2;
-  
+
   let newMinHz = center - newRangeHz / 2;
   let newMaxHz = center + newRangeHz / 2;
-  
+
   // Keep within full range bounds
   if (newMinHz < fullRange.minHz) {
     newMinHz = fullRange.minHz;
@@ -84,7 +84,7 @@ function calculateZoomedRange(
     newMaxHz = fullRange.maxHz;
     newMinHz = newMaxHz - newRangeHz;
   }
-  
+
   return { minHz: Math.round(newMinHz), maxHz: Math.round(newMaxHz) };
 }
 
@@ -130,11 +130,11 @@ export const useAppStore = create<AppState>()(
       // Waterfall zoom/pan state
       fullFrequencyRange: null,
       zoomLevel: 1,
-      
+
       zoomIn: () => {
         const state = get();
         if (!state.fullFrequencyRange || !state.frequencyViewRange) return;
-        
+
         const newZoomLevel = Math.min(state.zoomLevel * ZOOM_FACTOR, MAX_ZOOM_LEVEL);
         const newRange = calculateZoomedRange(
           state.fullFrequencyRange,
@@ -142,14 +142,14 @@ export const useAppStore = create<AppState>()(
           newZoomLevel,
           state.selectedFrequencyHz
         );
-        
+
         set({ zoomLevel: newZoomLevel, frequencyViewRange: newRange });
       },
-      
+
       zoomOut: () => {
         const state = get();
         if (!state.fullFrequencyRange || !state.frequencyViewRange) return;
-        
+
         const newZoomLevel = Math.max(state.zoomLevel / ZOOM_FACTOR, MIN_ZOOM_LEVEL);
         const newRange = calculateZoomedRange(
           state.fullFrequencyRange,
@@ -157,50 +157,50 @@ export const useAppStore = create<AppState>()(
           newZoomLevel,
           state.selectedFrequencyHz
         );
-        
+
         set({ zoomLevel: newZoomLevel, frequencyViewRange: newRange });
       },
-      
+
       panLeft: () => {
         const state = get();
         if (!state.fullFrequencyRange || !state.frequencyViewRange) return;
-        
+
         const viewRange = state.frequencyViewRange.maxHz - state.frequencyViewRange.minHz;
         const panAmountHz = viewRange * PAN_AMOUNT;
-        
+
         const newMinHz = Math.max(
           state.fullFrequencyRange.minHz,
           state.frequencyViewRange.minHz - panAmountHz
         );
         const newMaxHz = newMinHz + viewRange;
-        
+
         set({
           frequencyViewRange: { minHz: Math.round(newMinHz), maxHz: Math.round(newMaxHz) },
         });
       },
-      
+
       panRight: () => {
         const state = get();
         if (!state.fullFrequencyRange || !state.frequencyViewRange) return;
-        
+
         const viewRange = state.frequencyViewRange.maxHz - state.frequencyViewRange.minHz;
         const panAmountHz = viewRange * PAN_AMOUNT;
-        
+
         const newMaxHz = Math.min(
           state.fullFrequencyRange.maxHz,
           state.frequencyViewRange.maxHz + panAmountHz
         );
         const newMinHz = newMaxHz - viewRange;
-        
+
         set({
           frequencyViewRange: { minHz: Math.round(newMinHz), maxHz: Math.round(newMaxHz) },
         });
       },
-      
+
       resetZoom: () => {
         const state = get();
         if (!state.fullFrequencyRange) return;
-        
+
         set({
           zoomLevel: 1,
           frequencyViewRange: { ...state.fullFrequencyRange },
@@ -213,8 +213,7 @@ export const useAppStore = create<AppState>()(
 
       // Saved programs
       programs: [],
-      addProgram: (program) =>
-        set((state) => ({ programs: [...state.programs, program] })),
+      addProgram: (program) => set((state) => ({ programs: [...state.programs, program] })),
       updateProgram: (id, patch) =>
         set((state) => ({
           programs: state.programs.map((p) =>

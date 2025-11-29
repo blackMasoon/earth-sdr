@@ -43,8 +43,12 @@ export function WaterfallView() {
   }, []);
 
   // Connect to streaming API
-  const { isConnected, isConnecting, error: streamError } = useWaterfallStream({
-    stationId: useStreaming ? selectedStation?.id ?? null : null,
+  const {
+    isConnected,
+    isConnecting,
+    error: streamError,
+  } = useWaterfallStream({
+    stationId: useStreaming ? (selectedStation?.id ?? null) : null,
     minHz: frequencyViewRange?.minHz,
     maxHz: frequencyViewRange?.maxHz,
     enabled: useStreaming && !!selectedStation,
@@ -109,25 +113,19 @@ export function WaterfallView() {
 
       // Map the incoming magnitudes to canvas width based on frequency range
       for (let i = 0; i < canvasWidth; i++) {
-        const canvasFreq =
-          frequencyViewRange.minHz + (i / canvasWidth) * viewRange;
+        const canvasFreq = frequencyViewRange.minHz + (i / canvasWidth) * viewRange;
 
         // Find corresponding magnitude from the waterfall line
-        const lineIndex = Math.floor(
-          (canvasFreq - line.freqStartHz) / line.freqStepHz,
-        );
+        const lineIndex = Math.floor((canvasFreq - line.freqStartHz) / line.freqStepHz);
 
-        if (
-          lineIndex >= 0 &&
-          lineIndex < line.magnitudes.length
-        ) {
+        if (lineIndex >= 0 && lineIndex < line.magnitudes.length) {
           result[i] = line.magnitudes[lineIndex];
         }
       }
 
       return result;
     },
-    [frequencyViewRange],
+    [frequencyViewRange]
   );
 
   // Render waterfall
@@ -204,8 +202,7 @@ export function WaterfallView() {
       // Draw frequency cursor if selected
       if (selectedFrequencyHz && frequencyViewRange) {
         const freqRange = frequencyViewRange.maxHz - frequencyViewRange.minHz;
-        const cursorX =
-          ((selectedFrequencyHz - frequencyViewRange.minHz) / freqRange) * width;
+        const cursorX = ((selectedFrequencyHz - frequencyViewRange.minHz) / freqRange) * width;
 
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
@@ -250,12 +247,11 @@ export function WaterfallView() {
       const ratio = x / rect.width;
 
       const freq =
-        frequencyViewRange.minHz +
-        ratio * (frequencyViewRange.maxHz - frequencyViewRange.minHz);
+        frequencyViewRange.minHz + ratio * (frequencyViewRange.maxHz - frequencyViewRange.minHz);
 
       setSelectedFrequency(Math.round(freq));
     },
-    [frequencyViewRange, setSelectedFrequency],
+    [frequencyViewRange, setSelectedFrequency]
   );
 
   // Handle mouse wheel for zoom
@@ -281,7 +277,7 @@ export function WaterfallView() {
         }
       }
     },
-    [frequencyViewRange, zoomIn, zoomOut, panLeft, panRight],
+    [frequencyViewRange, zoomIn, zoomOut, panLeft, panRight]
   );
 
   // Keyboard shortcuts for zoom/pan
@@ -290,10 +286,7 @@ export function WaterfallView() {
       if (!frequencyViewRange) return;
 
       // Ignore if user is typing in an input field
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
 
@@ -386,9 +379,7 @@ export function WaterfallView() {
           <button
             onClick={() => setUseStreaming(!useStreaming)}
             className={`text-xs px-2 py-1 rounded ${
-              useStreaming
-                ? 'bg-atlas-accent text-white'
-                : 'bg-atlas-surface/80 text-atlas-text'
+              useStreaming ? 'bg-atlas-accent text-white' : 'bg-atlas-surface/80 text-atlas-text'
             }`}
             title={useStreaming ? 'Using backend stream' : 'Using local generator'}
           >
@@ -408,11 +399,7 @@ export function WaterfallView() {
       {frequencyViewRange && (
         <div className="absolute bottom-0 left-0 right-0 h-5 bg-atlas-surface/80 flex justify-between px-2 text-xs text-atlas-text">
           <span>{formatFrequency(frequencyViewRange.minHz)}</span>
-          <span>
-            {formatFrequency(
-              (frequencyViewRange.minHz + frequencyViewRange.maxHz) / 2,
-            )}
-          </span>
+          <span>{formatFrequency((frequencyViewRange.minHz + frequencyViewRange.maxHz) / 2)}</span>
           <span>{formatFrequency(frequencyViewRange.maxHz)}</span>
         </div>
       )}

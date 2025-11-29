@@ -24,8 +24,7 @@ export function SavedProgramsBar() {
   return (
     <div className="h-8 bg-atlas-surface relative overflow-hidden">
       {visiblePrograms.map((program) => {
-        const position =
-          ((program.frequencyHz - frequencyViewRange.minHz) / freqRange) * 100;
+        const position = ((program.frequencyHz - frequencyViewRange.minHz) / freqRange) * 100;
 
         return (
           <div

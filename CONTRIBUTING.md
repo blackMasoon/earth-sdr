@@ -13,18 +13,21 @@ Thank you for your interest in contributing to WebSDR Atlas! This document provi
 ### Development Setup
 
 1. **Fork and clone the repository**
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/earth-sdr.git
    cd earth-sdr
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install -g pnpm
    pnpm install
    ```
 
 3. **Setup the database**
+
    ```bash
    cd apps/backend
    cp .env.example .env
@@ -33,6 +36,7 @@ Thank you for your interest in contributing to WebSDR Atlas! This document provi
    ```
 
 4. **Start the development servers**
+
    ```bash
    pnpm dev
    ```
@@ -83,11 +87,13 @@ Thank you for your interest in contributing to WebSDR Atlas! This document provi
 ### Branching Strategy
 
 1. Create a feature branch from `main`:
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
 
 2. Make your changes and commit with clear messages:
+
    ```bash
    git commit -m "feat: add waterfall zoom controls"
    ```

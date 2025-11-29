@@ -54,7 +54,7 @@ export class StreamingController {
   getWaterfallStream(
     @Param('stationId') stationId: string,
     @Query('minHz') minHz?: string,
-    @Query('maxHz') maxHz?: string,
+    @Query('maxHz') maxHz?: string
   ): Observable<MessageEvent> {
     // Default frequency range (HF band)
     const freqMin = minHz ? parseInt(minHz, 10) : 7_000_000;
@@ -62,7 +62,7 @@ export class StreamingController {
     const numBins = 512;
 
     this.logger.log(
-      `Starting waterfall stream for station ${stationId}, range: ${freqMin}-${freqMax} Hz`,
+      `Starting waterfall stream for station ${stationId}, range: ${freqMin}-${freqMax} Hz`
     );
 
     // Send waterfall data at approximately 30 lines per second (33ms interval ≈ 30.3 fps)
@@ -72,13 +72,13 @@ export class StreamingController {
         const line = this.streamingService.generateSimulatedWaterfallLine(
           freqMin,
           freqMax,
-          numBins,
+          numBins
         );
         return {
           data: line,
           type: 'waterfall',
         };
-      }),
+      })
     );
   }
 
@@ -108,7 +108,7 @@ export class StreamingController {
     @Param('stationId') stationId: string,
     @Query('freq') freq: string,
     @Query('mode') mode: string,
-    @Res() res: Response,
+    @Res() res: Response
   ) {
     const frequencyHz = parseInt(freq, 10);
     const audioMode = mode || 'USB';
@@ -116,7 +116,7 @@ export class StreamingController {
     const audioInfo = await this.streamingService.getAudioStreamInfo(
       stationId,
       frequencyHz,
-      audioMode,
+      audioMode
     );
 
     if (!audioInfo) {
@@ -135,8 +135,7 @@ export class StreamingController {
       mode: audioMode,
       streamUrl: audioInfo.url,
       proxyAvailable: false, // Set to true when audio proxy is implemented
-      message:
-        'Audio proxy not yet implemented. Use streamUrl directly if CORS allows.',
+      message: 'Audio proxy not yet implemented. Use streamUrl directly if CORS allows.',
     });
   }
 }

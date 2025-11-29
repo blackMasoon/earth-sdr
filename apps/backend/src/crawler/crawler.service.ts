@@ -30,7 +30,8 @@ export class CrawlerService {
   private readonly logger = new Logger(CrawlerService.name);
   private readonly WEBSDR_ORG_URL = 'http://websdr.org';
   private readonly REQUEST_TIMEOUT = 10000; // 10 seconds
-  private readonly USER_AGENT = 'WebSDR-Atlas/1.0 (https://github.com/websdr-atlas; crawler@websdr-atlas.org)';
+  private readonly USER_AGENT =
+    'WebSDR-Atlas/1.0 (https://github.com/websdr-atlas; crawler@websdr-atlas.org)';
   // Default bandwidth assumption for single frequency mentions (±150 kHz for HF)
   private readonly DEFAULT_SINGLE_FREQ_BANDWIDTH_HZ = 150_000;
 
@@ -75,7 +76,8 @@ export class CrawlerService {
           await this.upsertStation(station);
           result.stationsProcessed++;
         } catch (stationError) {
-          const errorMessage = stationError instanceof Error ? stationError.message : String(stationError);
+          const errorMessage =
+            stationError instanceof Error ? stationError.message : String(stationError);
           result.errors.push(`Failed to upsert ${station.name}: ${errorMessage}`);
         }
       }
@@ -83,7 +85,7 @@ export class CrawlerService {
       result.success = result.stationsProcessed > 0;
       this.logger.log(
         `Crawl complete. Processed ${result.stationsProcessed} stations ` +
-        `(${result.stationsFromWebsdr} from websdr.org, ${result.stationsFromSeed} seed stations).`
+          `(${result.stationsFromWebsdr} from websdr.org, ${result.stationsFromSeed} seed stations).`
       );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -97,7 +99,10 @@ export class CrawlerService {
   /**
    * Merge stations from multiple sources, preferring websdr.org data
    */
-  private mergeStationSources(webStations: ParsedStation[], seedStations: ParsedStation[]): ParsedStation[] {
+  private mergeStationSources(
+    webStations: ParsedStation[],
+    seedStations: ParsedStation[]
+  ): ParsedStation[] {
     const stationsByUrl = new Map<string, ParsedStation>();
 
     // Add seed stations first
@@ -126,7 +131,7 @@ export class CrawlerService {
         method: 'GET',
         headers: {
           'User-Agent': this.USER_AGENT,
-          'Accept': 'text/html,application/xhtml+xml',
+          Accept: 'text/html,application/xhtml+xml',
         },
         signal: controller.signal,
       });
@@ -151,10 +156,10 @@ export class CrawlerService {
 
   /**
    * Parse HTML from websdr.org
-   * 
+   *
    * The websdr.org page typically contains a table with station information.
    * Structure may vary, so we attempt multiple parsing strategies.
-   * 
+   *
    * @param html - Raw HTML from websdr.org
    * @returns Parsed station data
    */
@@ -214,7 +219,9 @@ export class CrawlerService {
     const description = $(cells[1]).text().trim() || undefined;
 
     // Try to extract country code from text (usually 2-letter codes)
-    const countryMatch = $(row).text().match(/\b([A-Z]{2})\b/);
+    const countryMatch = $(row)
+      .text()
+      .match(/\b([A-Z]{2})\b/);
     const countryCode = countryMatch ? countryMatch[1] : undefined;
 
     // Extract coordinates if available (some listings include lat/lon)
@@ -230,7 +237,8 @@ export class CrawlerService {
       longitude,
       countryCode,
       description,
-      frequencyRanges: frequencyRanges.length > 0 ? frequencyRanges : [{ minHz: 0, maxHz: 30_000_000 }],
+      frequencyRanges:
+        frequencyRanges.length > 0 ? frequencyRanges : [{ minHz: 0, maxHz: 30_000_000 }],
     };
   }
 
@@ -255,7 +263,8 @@ export class CrawlerService {
       url: this.normalizeUrl(url),
       latitude,
       longitude,
-      frequencyRanges: frequencyRanges.length > 0 ? frequencyRanges : [{ minHz: 0, maxHz: 30_000_000 }],
+      frequencyRanges:
+        frequencyRanges.length > 0 ? frequencyRanges : [{ minHz: 0, maxHz: 30_000_000 }],
     };
   }
 
@@ -323,7 +332,7 @@ export class CrawlerService {
       const multiplier = unit === 'ghz' ? 1_000_000_000 : unit === 'mhz' ? 1_000_000 : 1_000;
       const centerHz = Math.round(freq * multiplier);
       // Only add if not overlapping with existing ranges
-      const exists = ranges.some(r => centerHz >= r.minHz && centerHz <= r.maxHz);
+      const exists = ranges.some((r) => centerHz >= r.minHz && centerHz <= r.maxHz);
       if (!exists) {
         ranges.push({
           minHz: centerHz - this.DEFAULT_SINGLE_FREQ_BANDWIDTH_HZ,
@@ -353,7 +362,7 @@ export class CrawlerService {
       const bandRange = bandFrequencies[band];
       if (bandRange) {
         const exists = ranges.some(
-          r => r.minHz === bandRange.minHz && r.maxHz === bandRange.maxHz
+          (r) => r.minHz === bandRange.minHz && r.maxHz === bandRange.maxHz
         );
         if (!exists) {
           ranges.push(bandRange);
@@ -447,7 +456,7 @@ export class CrawlerService {
           lastSeenAt: new Date(),
           isActive: true,
           ranges: {
-            create: station.frequencyRanges.map(range => ({
+            create: station.frequencyRanges.map((range) => ({
               minHz: range.minHz,
               maxHz: range.maxHz,
             })),
@@ -469,7 +478,8 @@ export class CrawlerService {
         latitude: 52.2389,
         longitude: 6.8563,
         countryCode: 'NL',
-        description: 'Wide-coverage SDR at University of Twente, Netherlands - One of the most popular WebSDRs worldwide',
+        description:
+          'Wide-coverage SDR at University of Twente, Netherlands - One of the most popular WebSDRs worldwide',
         frequencyRanges: [
           { minHz: 0, maxHz: 29_000_000 }, // 0-29 MHz
         ],

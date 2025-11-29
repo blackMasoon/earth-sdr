@@ -1,6 +1,7 @@
 # WebSDR Atlas 🌍
 
 A world-wide WebSDR browser that aggregates all available WebSDR stations with:
+
 - Interactive map (OpenStreetMap) for station selection
 - Alternative list view
 - Estimated propagation range visualization (frequency-dependent circles)

@@ -1,0 +1,24 @@
+{
+  "name": "websdr-atlas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WebSDR Atlas - A world wide SDR browser aggregating WebSDR stations",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "packageManager": "pnpm@10.24.0",
+  "devDependencies": {
+    "eslint": "^9.39.1",
+    "prettier": "^3.7.2",
+    "turbo": "^2.6.1",
+    "typescript": "^5.9.3"
+  }
+}

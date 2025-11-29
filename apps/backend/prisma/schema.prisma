@@ -1,0 +1,67 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Station {
+  id               String    @id @default(cuid())
+  name             String
+  description      String?
+  url              String    @unique
+  latitude         Float
+  longitude        Float
+  countryCode      String?
+  rawListingSource String    @default("manual")
+  lastSeenAt       DateTime?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  ranges   StationFrequencyRange[]
+  programs Program[]
+
+  @@index([countryCode])
+  @@index([isActive])
+}
+
+model StationFrequencyRange {
+  id        String  @id @default(cuid())
+  station   Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  stationId String
+  minHz     Int
+  maxHz     Int
+
+  @@index([stationId])
+}
+
+model Program {
+  id          String   @id @default(cuid())
+  station     Station? @relation(fields: [stationId], references: [id], onDelete: SetNull)
+  stationId   String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String?
+  frequencyHz Int
+  name        String
+  colorHex    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([stationId])
+  @@index([userId])
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  programs  Program[]
+}

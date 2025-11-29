@@ -160,7 +160,7 @@ export class CrawlerService {
         latitude: 52.2389,
         longitude: 6.8563,
         countryCode: 'NL',
-        description: 'Wide-coverage SDR at University of Twente, Netherlands',
+        description: 'Wide-coverage SDR at University of Twente, Netherlands - One of the most popular WebSDRs worldwide',
         frequencyRanges: [
           { minHz: 0, maxHz: 29_000_000 }, // 0-29 MHz
         ],
@@ -197,7 +197,7 @@ export class CrawlerService {
         latitude: 50.9376,
         longitude: -1.3963,
         countryCode: 'GB',
-        description: 'Southampton University Wireless Society',
+        description: 'Southampton University Wireless Society - VHF/UHF coverage',
         frequencyRanges: [
           { minHz: 144_000_000, maxHz: 146_000_000 }, // 2m VHF
           { minHz: 430_000_000, maxHz: 440_000_000 }, // 70cm UHF
@@ -277,6 +277,72 @@ export class CrawlerService {
           { minHz: 7_000_000, maxHz: 7_200_000 }, // 40m
           { minHz: 14_000_000, maxHz: 14_350_000 }, // 20m
           { minHz: 21_000_000, maxHz: 21_450_000 }, // 15m
+        ],
+      },
+      // Additional stations for broader coverage
+      {
+        name: 'ZS6BKW WebSDR',
+        url: 'http://zs6bkw.com:8901/',
+        latitude: -26.0382,
+        longitude: 28.1123,
+        countryCode: 'ZA',
+        description: 'South African amateur radio WebSDR near Johannesburg',
+        frequencyRanges: [
+          { minHz: 3_500_000, maxHz: 4_000_000 }, // 80m
+          { minHz: 7_000_000, maxHz: 7_300_000 }, // 40m
+          { minHz: 14_000_000, maxHz: 14_350_000 }, // 20m
+          { minHz: 21_000_000, maxHz: 21_450_000 }, // 15m
+        ],
+      },
+      {
+        name: 'PY2GN WebSDR',
+        url: 'http://py2gn.com:8901/',
+        latitude: -23.5505,
+        longitude: -46.6333,
+        countryCode: 'BR',
+        description: 'Brazilian amateur radio WebSDR in São Paulo',
+        frequencyRanges: [
+          { minHz: 7_000_000, maxHz: 7_300_000 }, // 40m
+          { minHz: 14_000_000, maxHz: 14_350_000 }, // 20m
+          { minHz: 28_000_000, maxHz: 29_700_000 }, // 10m
+        ],
+      },
+      {
+        name: 'VE3HOA WebSDR',
+        url: 'http://ve3hoa.org:8901/',
+        latitude: 43.6532,
+        longitude: -79.3832,
+        countryCode: 'CA',
+        description: 'Canadian amateur radio WebSDR in Toronto',
+        frequencyRanges: [
+          { minHz: 3_500_000, maxHz: 4_000_000 }, // 80m
+          { minHz: 7_000_000, maxHz: 7_300_000 }, // 40m
+          { minHz: 14_000_000, maxHz: 14_350_000 }, // 20m
+        ],
+      },
+      {
+        name: 'LA4TEN WebSDR',
+        url: 'http://la4ten.no:8901/',
+        latitude: 59.9139,
+        longitude: 10.7522,
+        countryCode: 'NO',
+        description: 'Norwegian amateur radio WebSDR in Oslo',
+        frequencyRanges: [
+          { minHz: 1_800_000, maxHz: 2_000_000 }, // 160m
+          { minHz: 3_500_000, maxHz: 3_800_000 }, // 80m
+          { minHz: 7_000_000, maxHz: 7_200_000 }, // 40m
+        ],
+      },
+      {
+        name: 'SM5BSZ WebSDR',
+        url: 'http://sm5bsz.com:8901/',
+        latitude: 59.3293,
+        longitude: 18.0686,
+        countryCode: 'SE',
+        description: 'Swedish amateur radio WebSDR in Stockholm',
+        frequencyRanges: [
+          { minHz: 7_000_000, maxHz: 7_200_000 }, // 40m
+          { minHz: 14_000_000, maxHz: 14_350_000 }, // 20m
         ],
       },
     ];

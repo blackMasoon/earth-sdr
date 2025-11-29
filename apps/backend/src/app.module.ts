@@ -4,6 +4,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { StationsModule } from './stations/stations.module';
 import { CrawlerModule } from './crawler/crawler.module';
 import { PropagationModule } from './propagation/propagation.module';
+import { StreamingModule } from './streaming/streaming.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { PropagationModule } from './propagation/propagation.module';
     StationsModule,
     CrawlerModule,
     PropagationModule,
+    StreamingModule,
   ],
 })
 export class AppModule {}

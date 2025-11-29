@@ -15,7 +15,7 @@ Based on the detailed plan in `agents.md`, this document tracks implementation p
   - [x] PropagationRing types
   - [x] SavedProgram types
   - [x] Utility functions (formatFrequency, calculateDistance, etc.)
-- [ ] CI/CD pipeline configuration
+- [x] CI/CD pipeline configuration
 
 ### Faza 1 – Core backend ✅
 
@@ -28,7 +28,9 @@ Based on the detailed plan in `agents.md`, this document tracks implementation p
 - [x] Prosty `WebsdrCrawler` 
   - [x] Seed data z 10 przykładowymi stacjami
   - [x] `POST /api/crawler/seed` endpoint
-  - [ ] Actual websdr.org HTML parsing (stubbed)
+  - [x] Actual websdr.org HTML parsing (with fallback to seed data)
+  - [x] Frequency range extraction from text
+  - [x] Coordinate extraction from text
 - [x] Moduł `Propagation`
   - [x] `GET /api/propagation` endpoint
   - [x] Simple propagation model (day/night based)

@@ -1,5 +1,5 @@
-import { Controller, Post } from '@nestjs/common';
-import { CrawlerService } from './crawler.service';
+import { Controller, Get, Post } from '@nestjs/common';
+import { CrawlerService, CrawlResult } from './crawler.service';
 
 @Controller('crawler')
 export class CrawlerController {
@@ -7,11 +7,23 @@ export class CrawlerController {
 
   /**
    * Manually trigger a crawl (for development/testing)
+   * Returns detailed results of the crawl operation
    */
   @Post('run')
-  async runCrawl() {
-    await this.crawlerService.crawlWebsdrOrg();
-    return { message: 'Crawl initiated' };
+  async runCrawl(): Promise<CrawlResult> {
+    return this.crawlerService.crawlWebsdrOrg();
+  }
+
+  /**
+   * Get crawl status (for health checks)
+   */
+  @Get('status')
+  getStatus() {
+    return {
+      service: 'crawler',
+      status: 'ready',
+      scheduledInterval: 'every 6 hours',
+    };
   }
 
   /**

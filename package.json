@@ -2,6 +2,7 @@
   "name": "websdr-atlas",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "WebSDR Atlas - A world wide SDR browser aggregating WebSDR stations",
   "scripts": {
     "dev": "turbo run dev",
@@ -16,9 +17,12 @@
   },
   "packageManager": "pnpm@10.24.0",
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@typescript-eslint/parser": "^8.48.0",
     "eslint": "^9.39.1",
     "prettier": "^3.7.2",
     "turbo": "^2.6.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.0"
   }
 }

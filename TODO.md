@@ -96,8 +96,9 @@ Based on the detailed plan in `agents.md`, this document tracks implementation p
 - [x] Frontend waterfall streaming hook (useWaterfallStream)
 - [x] Frontend toggle between stream/local mode
 - [x] Station online/offline status indicator
-- [ ] Podmiana testowych danych na rzeczywiste z jednej stacji
-- [ ] CORS proxy dla strumieni audio/waterfall (actual WebSDR integration)
+- [x] Waterfall header fetching and parsing
+- [x] Real waterfall data proxy with fallback to simulated data
+- [ ] CORS proxy dla strumieni audio (actual WebSDR audio integration)
 
 ### Faza 7 – Szlify i open-source ✅
 
@@ -132,5 +133,7 @@ Based on the detailed plan in `agents.md`, this document tracks implementation p
 1. ~~Add waterfall zoom/pan controls~~ ✅
 2. ~~Implement streaming proxy module~~ ✅
 3. ~~Add station online/offline status check~~ ✅
-4. Implement actual WebSDR data streaming for one station (pilot)
+4. ~~Implement actual WebSDR data streaming for one station (pilot)~~ ✅
+5. Implement audio streaming proxy
+6. Integrate with VOACAP for better propagation predictions
 5. Implement CORS proxy for WebSDR streams

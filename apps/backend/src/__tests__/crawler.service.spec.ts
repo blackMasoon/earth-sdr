@@ -1,7 +1,26 @@
 import { CrawlerService } from '../crawler/crawler.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { FrequencyRange } from '@websdr-atlas/shared';
+
+// Define types for mock prisma service
+interface MockStationMethods {
+  findUnique: jest.Mock;
+  create: jest.Mock;
+  update: jest.Mock;
+}
+
+interface MockStationFrequencyRangeMethods {
+  create: jest.Mock;
+  deleteMany: jest.Mock;
+}
+
+interface MockPrismaService {
+  station: MockStationMethods;
+  stationFrequencyRange: MockStationFrequencyRangeMethods;
+}
 
 // Create a mock PrismaService
-const mockPrismaService = {
+const mockPrismaService: MockPrismaService = {
   station: {
     findUnique: jest.fn(),
     create: jest.fn(),
@@ -13,19 +32,36 @@ const mockPrismaService = {
   },
 };
 
+// Type for private method access in tests
+interface CrawlerServiceTestable {
+  extractFrequencyRanges(text: string): FrequencyRange[];
+  extractCoordinates(text: string): { latitude: number; longitude: number };
+  normalizeUrl(url: string): string;
+  getSeedStations(): Array<{
+    name: string;
+    url: string;
+    latitude: number;
+    longitude: number;
+    frequencyRanges: FrequencyRange[];
+  }>;
+}
+
 describe('CrawlerService', () => {
   let service: CrawlerService;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let testableService: CrawlerServiceTestable;
 
   beforeEach(() => {
     jest.clearAllMocks();
     // Create service with mock PrismaService
-    service = new CrawlerService(mockPrismaService as any);
+    service = new CrawlerService(mockPrismaService as unknown as PrismaService);
+    testableService = service as unknown as CrawlerServiceTestable;
   });
 
   describe('Frequency extraction', () => {
     // Access private method via type assertion for testing
-    const extractFrequencyRanges = (text: string) => {
-      return (service as any).extractFrequencyRanges(text);
+    const extractFrequencyRanges = (text: string): FrequencyRange[] => {
+      return (service as unknown as CrawlerServiceTestable).extractFrequencyRanges(text);
     };
 
     it('should extract MHz range patterns', () => {
@@ -49,7 +85,7 @@ describe('CrawlerService', () => {
 
       expect(ranges.length).toBeGreaterThanOrEqual(3);
       // Check for 40m band (7 MHz)
-      const band40m = ranges.find((r: { minHz: number; maxHz: number }) => r.minHz === 7_000_000);
+      const band40m = ranges.find((r) => r.minHz === 7_000_000);
       expect(band40m).toBeDefined();
     });
 
@@ -61,8 +97,8 @@ describe('CrawlerService', () => {
   });
 
   describe('Coordinate extraction', () => {
-    const extractCoordinates = (text: string) => {
-      return (service as any).extractCoordinates(text);
+    const extractCoordinates = (text: string): { latitude: number; longitude: number } => {
+      return (service as unknown as CrawlerServiceTestable).extractCoordinates(text);
     };
 
     it('should extract decimal coordinates with N/S/E/W', () => {
@@ -88,8 +124,8 @@ describe('CrawlerService', () => {
   });
 
   describe('URL normalization', () => {
-    const normalizeUrl = (url: string) => {
-      return (service as any).normalizeUrl(url);
+    const normalizeUrl = (url: string): string => {
+      return (service as unknown as CrawlerServiceTestable).normalizeUrl(url);
     };
 
     it('should add http:// protocol if missing', () => {
@@ -113,7 +149,7 @@ describe('CrawlerService', () => {
 
   describe('Seed data', () => {
     it('should return seed stations', () => {
-      const seedStations = (service as any).getSeedStations();
+      const seedStations = (service as unknown as CrawlerServiceTestable).getSeedStations();
 
       expect(seedStations.length).toBeGreaterThan(0);
 

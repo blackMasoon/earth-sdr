@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { GetStationsQueryDto } from './dto';
 import {
@@ -15,7 +16,7 @@ export class StationsService {
   async findAll(query: GetStationsQueryDto): Promise<WebSdrStationListItem[]> {
     const { band, country, search, onlineOnly, north, south, east, west } = query;
 
-    const where: any = {
+    const where: Prisma.StationWhereInput = {
       isActive: true,
     };
 

@@ -1,6 +1,6 @@
 import { Controller, Get, Param, Query, Sse, MessageEvent, Logger, Res } from '@nestjs/common';
 import { Response } from 'express';
-import { Observable, interval, map } from 'rxjs';
+import { Observable, interval, from, switchMap, map, catchError, of } from 'rxjs';
 import { StreamingService } from './streaming.service';
 
 /**
@@ -10,6 +10,7 @@ import { StreamingService } from './streaming.service';
  * 1. SSE (Server-Sent Events) for waterfall data
  * 2. Proxy endpoint for audio streams
  * 3. Station status check endpoint
+ * 4. Real waterfall data fetching with fallback to simulated data
  *
  * These endpoints allow the frontend to access WebSDR streams
  * without CORS issues, as the browser connects to our backend
@@ -48,38 +49,82 @@ export class StreamingController {
    * SSE endpoint for waterfall data
    * Streams waterfall lines to the client in real-time
    *
-   * For MVP: Uses simulated data until real WebSDR integration is complete
+   * Attempts to fetch real waterfall data from the WebSDR,
+   * falls back to simulated data if the station is unreachable.
    */
   @Sse('waterfall/:stationId')
   getWaterfallStream(
     @Param('stationId') stationId: string,
     @Query('minHz') minHz?: string,
-    @Query('maxHz') maxHz?: string
+    @Query('maxHz') maxHz?: string,
+    @Query('useReal') useReal?: string
   ): Observable<MessageEvent> {
     // Default frequency range (HF band)
     const freqMin = minHz ? parseInt(minHz, 10) : 7_000_000;
     const freqMax = maxHz ? parseInt(maxHz, 10) : 7_300_000;
     const numBins = 512;
+    const attemptRealData = useReal !== 'false';
 
     this.logger.log(
-      `Starting waterfall stream for station ${stationId}, range: ${freqMin}-${freqMax} Hz`
+      `Starting waterfall stream for station ${stationId}, range: ${freqMin}-${freqMax} Hz, real: ${attemptRealData}`
     );
 
     // Send waterfall data at approximately 30 lines per second (33ms interval ≈ 30.3 fps)
-    // In production, this would proxy real WebSDR data
+    // First try to get real data, fall back to simulated if it fails
     return interval(33).pipe(
-      map(() => {
-        const line = this.streamingService.generateSimulatedWaterfallLine(
-          freqMin,
-          freqMax,
-          numBins
-        );
-        return {
-          data: line,
-          type: 'waterfall',
-        };
-      })
+      switchMap(() => {
+        if (attemptRealData) {
+          // Try to get real data, fall back to simulated
+          return from(this.streamingService.getWaterfallLine(stationId, freqMin, freqMax, numBins)).pipe(
+            catchError(() => {
+              // On error, return simulated data
+              return of(this.streamingService.generateSimulatedWaterfallLine(freqMin, freqMax, numBins));
+            })
+          );
+        } else {
+          // Use simulated data directly
+          return of(this.streamingService.generateSimulatedWaterfallLine(freqMin, freqMax, numBins));
+        }
+      }),
+      map((line) => ({
+        data: line,
+        type: 'waterfall',
+      }))
     );
+  }
+
+  /**
+   * Get waterfall header/configuration for a station
+   * Returns band information and frequency mappings
+   */
+  @Get('waterfall-header/:stationId')
+  async getWaterfallHeader(@Param('stationId') stationId: string) {
+    const waterfallInfo = await this.streamingService.getWaterfallStreamInfo(stationId);
+
+    if (!waterfallInfo) {
+      return {
+        error: 'Station not found',
+        stationId,
+      };
+    }
+
+    // Extract the station URL from the waterfall info
+    // and try to fetch the header from the actual WebSDR
+    const stationUrl = waterfallInfo.url.replace(/\/~~waterfallheader$/, '');
+    const header = await this.streamingService.fetchWaterfallHeader(stationUrl);
+
+    if (!header) {
+      return {
+        stationId,
+        bands: [],
+        error: 'Could not fetch waterfall header from station',
+      };
+    }
+
+    return {
+      stationId,
+      ...header,
+    };
   }
 
   /**

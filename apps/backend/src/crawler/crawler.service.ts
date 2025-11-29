@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import * as cheerio from 'cheerio';
+import type { Element } from 'domhandler';
 
 interface ParsedStation {
   name: string;
@@ -13,9 +14,25 @@ interface ParsedStation {
   frequencyRanges: Array<{ minHz: number; maxHz: number }>;
 }
 
+/**
+ * Result of a crawl operation
+ */
+export interface CrawlResult {
+  success: boolean;
+  stationsProcessed: number;
+  stationsFromWebsdr: number;
+  stationsFromSeed: number;
+  errors: string[];
+}
+
 @Injectable()
 export class CrawlerService {
   private readonly logger = new Logger(CrawlerService.name);
+  private readonly WEBSDR_ORG_URL = 'http://websdr.org';
+  private readonly REQUEST_TIMEOUT = 10000; // 10 seconds
+  private readonly USER_AGENT = 'WebSDR-Atlas/1.0 (https://github.com/websdr-atlas; crawler@websdr-atlas.org)';
+  // Default bandwidth assumption for single frequency mentions (±150 kHz for HF)
+  private readonly DEFAULT_SINGLE_FREQ_BANDWIDTH_HZ = 150_000;
 
   constructor(private prisma: PrismaService) {}
 
@@ -29,62 +46,354 @@ export class CrawlerService {
   }
 
   /**
-   * Manually trigger a crawl
+   * Manually trigger a crawl with detailed results
    */
-  async crawlWebsdrOrg(): Promise<void> {
+  async crawlWebsdrOrg(): Promise<CrawlResult> {
     this.logger.log('Crawling websdr.org...');
+    const result: CrawlResult = {
+      success: false,
+      stationsProcessed: 0,
+      stationsFromWebsdr: 0,
+      stationsFromSeed: 0,
+      errors: [],
+    };
 
     try {
-      // Note: In production, you would fetch from websdr.org
-      // For now, we'll use seed data since websdr.org may block automated requests
-      const stations = await this.fetchAndParseWebsdrOrg();
+      // Try to fetch from websdr.org first
+      const webStations = await this.fetchAndParseWebsdrOrg();
+      result.stationsFromWebsdr = webStations.length;
 
-      for (const station of stations) {
-        await this.upsertStation(station);
+      // If websdr.org fetch failed or returned no results, use seed data
+      const seedStations = this.getSeedStations();
+      result.stationsFromSeed = seedStations.length;
+
+      // Merge both sources, preferring websdr.org data
+      const allStations = this.mergeStationSources(webStations, seedStations);
+
+      for (const station of allStations) {
+        try {
+          await this.upsertStation(station);
+          result.stationsProcessed++;
+        } catch (stationError) {
+          const errorMessage = stationError instanceof Error ? stationError.message : String(stationError);
+          result.errors.push(`Failed to upsert ${station.name}: ${errorMessage}`);
+        }
       }
 
-      this.logger.log(`Crawl complete. Processed ${stations.length} stations.`);
+      result.success = result.stationsProcessed > 0;
+      this.logger.log(
+        `Crawl complete. Processed ${result.stationsProcessed} stations ` +
+        `(${result.stationsFromWebsdr} from websdr.org, ${result.stationsFromSeed} seed stations).`
+      );
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      result.errors.push(errorMessage);
       this.logger.error('Crawl failed:', error);
     }
+
+    return result;
+  }
+
+  /**
+   * Merge stations from multiple sources, preferring websdr.org data
+   */
+  private mergeStationSources(webStations: ParsedStation[], seedStations: ParsedStation[]): ParsedStation[] {
+    const stationsByUrl = new Map<string, ParsedStation>();
+
+    // Add seed stations first
+    for (const station of seedStations) {
+      stationsByUrl.set(station.url, station);
+    }
+
+    // Override with websdr.org data where available
+    for (const station of webStations) {
+      stationsByUrl.set(station.url, station);
+    }
+
+    return Array.from(stationsByUrl.values());
   }
 
   /**
    * Fetch and parse websdr.org HTML
-   * Note: This is a stub that returns seed data.
-   * In production, this would actually fetch from websdr.org
+   * Falls back to empty array if fetch fails
    */
   private async fetchAndParseWebsdrOrg(): Promise<ParsedStation[]> {
-    // For MVP, return seed data instead of actually fetching
-    // This avoids issues with websdr.org blocking automated requests
-    // TODO: Implement actual crawler with proper rate limiting and user-agent
-    return this.getSeedStations();
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.REQUEST_TIMEOUT);
+
+      const response = await fetch(this.WEBSDR_ORG_URL, {
+        method: 'GET',
+        headers: {
+          'User-Agent': this.USER_AGENT,
+          'Accept': 'text/html,application/xhtml+xml',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        this.logger.warn(`websdr.org returned ${response.status}: ${response.statusText}`);
+        return [];
+      }
+
+      const html = await response.text();
+      this.logger.log(`Fetched ${html.length} bytes from websdr.org`);
+
+      return this.parseWebsdrHtml(html);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Failed to fetch websdr.org: ${errorMessage}. Using seed data.`);
+      return [];
+    }
   }
 
   /**
    * Parse HTML from websdr.org
-   * This method is a stub for when we implement actual crawling.
+   * 
+   * The websdr.org page typically contains a table with station information.
+   * Structure may vary, so we attempt multiple parsing strategies.
    * 
    * @param html - Raw HTML from websdr.org
    * @returns Parsed station data
-   * 
-   * TODO: Implement actual parsing when websdr.org structure is analyzed
    */
   private parseWebsdrHtml(html: string): ParsedStation[] {
-    // Load HTML with cheerio for future parsing
     const $ = cheerio.load(html);
     const stations: ParsedStation[] = [];
 
-    // Example structure (to be implemented):
-    // $('table tr').each((_, row) => {
-    //   const name = $(row).find('td:first').text();
-    //   const url = $(row).find('a').attr('href');
-    //   // ... extract other fields
-    //   stations.push({ name, url, ... });
-    // });
+    // Strategy 1: Look for table rows with station data
+    // websdr.org typically uses tables to list stations
+    $('table tr').each((_, row) => {
+      try {
+        const station = this.parseTableRow($, row);
+        if (station) {
+          stations.push(station);
+        }
+      } catch {
+        // Skip malformed rows
+      }
+    });
 
-    this.logger.warn(`parseWebsdrHtml: HTML parsing not yet implemented (${html.length} bytes received)`);
+    // Strategy 2: Look for links that point to websdr instances
+    // Common pattern: http://hostname:8901/
+    if (stations.length === 0) {
+      $('a[href*=":8901"]').each((_, link) => {
+        try {
+          const station = this.parseWebsdrLink($, link);
+          if (station) {
+            stations.push(station);
+          }
+        } catch {
+          // Skip malformed links
+        }
+      });
+    }
+
+    this.logger.log(`Parsed ${stations.length} stations from websdr.org HTML`);
     return stations;
+  }
+
+  /**
+   * Parse a table row for station data
+   */
+  private parseTableRow($: cheerio.CheerioAPI, row: Element): ParsedStation | null {
+    const cells = $(row).find('td');
+    if (cells.length < 2) return null;
+
+    // Find the link to the websdr
+    const link = $(row).find('a[href*="websdr"], a[href*=":8901"]').first();
+    const url = link.attr('href');
+    if (!url) return null;
+
+    // Extract name from link text or first cell
+    const name = link.text().trim() || $(cells[0]).text().trim();
+    if (!name) return null;
+
+    // Try to extract description from subsequent cells
+    const description = $(cells[1]).text().trim() || undefined;
+
+    // Try to extract country code from text (usually 2-letter codes)
+    const countryMatch = $(row).text().match(/\b([A-Z]{2})\b/);
+    const countryCode = countryMatch ? countryMatch[1] : undefined;
+
+    // Extract coordinates if available (some listings include lat/lon)
+    const { latitude, longitude } = this.extractCoordinates($(row).text());
+
+    // Try to parse frequency ranges from text
+    const frequencyRanges = this.extractFrequencyRanges($(row).text());
+
+    return {
+      name,
+      url: this.normalizeUrl(url),
+      latitude,
+      longitude,
+      countryCode,
+      description,
+      frequencyRanges: frequencyRanges.length > 0 ? frequencyRanges : [{ minHz: 0, maxHz: 30_000_000 }],
+    };
+  }
+
+  /**
+   * Parse a websdr link element
+   */
+  private parseWebsdrLink($: cheerio.CheerioAPI, link: Element): ParsedStation | null {
+    const url = $(link).attr('href');
+    if (!url) return null;
+
+    const name = $(link).text().trim() || this.extractNameFromUrl(url);
+    if (!name) return null;
+
+    // Get surrounding text for context
+    const parentText = $(link).parent().text();
+
+    const { latitude, longitude } = this.extractCoordinates(parentText);
+    const frequencyRanges = this.extractFrequencyRanges(parentText);
+
+    return {
+      name,
+      url: this.normalizeUrl(url),
+      latitude,
+      longitude,
+      frequencyRanges: frequencyRanges.length > 0 ? frequencyRanges : [{ minHz: 0, maxHz: 30_000_000 }],
+    };
+  }
+
+  /**
+   * Extract coordinates from text
+   * Looks for patterns like "52.23N, 6.85E" or decimal coordinates
+   */
+  private extractCoordinates(text: string): { latitude: number; longitude: number } {
+    // Pattern: decimal degrees with N/S/E/W
+    const dmsPattern = /(\d+\.?\d*)[°]?\s*([NS])[,\s]+(\d+\.?\d*)[°]?\s*([EW])/i;
+    const dmsMatch = text.match(dmsPattern);
+    if (dmsMatch) {
+      let lat = parseFloat(dmsMatch[1]);
+      let lon = parseFloat(dmsMatch[3]);
+      if (dmsMatch[2].toUpperCase() === 'S') lat = -lat;
+      if (dmsMatch[4].toUpperCase() === 'W') lon = -lon;
+      // Validate coordinates are in valid ranges
+      if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+        return { latitude: lat, longitude: lon };
+      }
+    }
+
+    // Pattern: plain decimal coordinates - be more restrictive to avoid false positives
+    // Only match if the numbers look like coordinates (reasonable ranges, with decimals)
+    const decimalPattern = /(-?\d{1,3}\.\d+)[,\s]+(-?\d{1,3}\.\d+)/;
+    const decimalMatch = text.match(decimalPattern);
+    if (decimalMatch) {
+      const lat = parseFloat(decimalMatch[1]);
+      const lon = parseFloat(decimalMatch[2]);
+      // Validate ranges - latitude must be -90 to 90, longitude -180 to 180
+      if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+        return { latitude: lat, longitude: lon };
+      }
+    }
+
+    // Default to center of the world (will be corrected later if station is geocoded)
+    return { latitude: 0, longitude: 0 };
+  }
+
+  /**
+   * Extract frequency ranges from text
+   * Looks for patterns like "0-30 MHz", "7.0-7.3 MHz", "40m", etc.
+   */
+  private extractFrequencyRanges(text: string): Array<{ minHz: number; maxHz: number }> {
+    const ranges: Array<{ minHz: number; maxHz: number }> = [];
+
+    // Pattern: range like "0-30 MHz" or "7.0-7.3 MHz"
+    const rangePattern = /(\d+\.?\d*)\s*-\s*(\d+\.?\d*)\s*(MHz|kHz|GHz)/gi;
+    for (const match of text.matchAll(rangePattern)) {
+      const min = parseFloat(match[1]);
+      const max = parseFloat(match[2]);
+      const unit = match[3].toLowerCase();
+      const multiplier = unit === 'ghz' ? 1_000_000_000 : unit === 'mhz' ? 1_000_000 : 1_000;
+      ranges.push({
+        minHz: Math.round(min * multiplier),
+        maxHz: Math.round(max * multiplier),
+      });
+    }
+
+    // Pattern: single frequency like "7 MHz" (assume ± default bandwidth)
+    const singlePattern = /(\d+\.?\d*)\s*(MHz|kHz|GHz)/gi;
+    for (const match of text.matchAll(singlePattern)) {
+      const freq = parseFloat(match[1]);
+      const unit = match[2].toLowerCase();
+      const multiplier = unit === 'ghz' ? 1_000_000_000 : unit === 'mhz' ? 1_000_000 : 1_000;
+      const centerHz = Math.round(freq * multiplier);
+      // Only add if not overlapping with existing ranges
+      const exists = ranges.some(r => centerHz >= r.minHz && centerHz <= r.maxHz);
+      if (!exists) {
+        ranges.push({
+          minHz: centerHz - this.DEFAULT_SINGLE_FREQ_BANDWIDTH_HZ,
+          maxHz: centerHz + this.DEFAULT_SINGLE_FREQ_BANDWIDTH_HZ,
+        });
+      }
+    }
+
+    // Pattern: band names like "40m", "20m", "80m"
+    const bandPattern = /\b(\d{1,3})m\b/gi;
+    const bandFrequencies: Record<string, { minHz: number; maxHz: number }> = {
+      '160': { minHz: 1_800_000, maxHz: 2_000_000 },
+      '80': { minHz: 3_500_000, maxHz: 4_000_000 },
+      '60': { minHz: 5_350_000, maxHz: 5_450_000 },
+      '40': { minHz: 7_000_000, maxHz: 7_300_000 },
+      '30': { minHz: 10_100_000, maxHz: 10_150_000 },
+      '20': { minHz: 14_000_000, maxHz: 14_350_000 },
+      '17': { minHz: 18_068_000, maxHz: 18_168_000 },
+      '15': { minHz: 21_000_000, maxHz: 21_450_000 },
+      '12': { minHz: 24_890_000, maxHz: 24_990_000 },
+      '10': { minHz: 28_000_000, maxHz: 29_700_000 },
+      '6': { minHz: 50_000_000, maxHz: 54_000_000 },
+      '2': { minHz: 144_000_000, maxHz: 148_000_000 },
+    };
+    for (const match of text.matchAll(bandPattern)) {
+      const band = match[1];
+      const bandRange = bandFrequencies[band];
+      if (bandRange) {
+        const exists = ranges.some(
+          r => r.minHz === bandRange.minHz && r.maxHz === bandRange.maxHz
+        );
+        if (!exists) {
+          ranges.push(bandRange);
+        }
+      }
+    }
+
+    return ranges;
+  }
+
+  /**
+   * Extract a name from a WebSDR URL
+   */
+  private extractNameFromUrl(url: string): string {
+    try {
+      const parsed = new URL(url);
+      // Return hostname without common prefixes/suffixes
+      return parsed.hostname
+        .replace(/^(www\.|websdr\.)/i, '')
+        .replace(/\.(com|org|net|nl|de|uk)$/i, '')
+        .toUpperCase();
+    } catch {
+      return 'Unknown WebSDR';
+    }
+  }
+
+  /**
+   * Normalize a WebSDR URL
+   */
+  private normalizeUrl(url: string): string {
+    try {
+      // Ensure URL has protocol
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'http://' + url;
+      }
+      // Remove trailing slash for consistency
+      return url.replace(/\/$/, '');
+    } catch {
+      return url;
+    }
   }
 
   /**

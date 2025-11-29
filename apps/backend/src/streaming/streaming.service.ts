@@ -163,7 +163,26 @@ export class StreamingService {
   private readonly logger = new Logger(StreamingService.name);
   private readonly adapters: WebSdrAdapter[] = [new KiwiSdrAdapter(), new StandardWebSdrAdapter()];
   private readonly waterfallHeaderCache = new Map<string, WaterfallHeader>();
+
+  // Constants for cache and data validation
   private readonly HEADER_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+  /**
+   * Minimum data length for valid waterfall response.
+   * WebSDR waterfall data typically contains at least a few FFT bins.
+   * A response smaller than this is likely an error or empty response.
+   */
+  private readonly MIN_WATERFALL_DATA_LENGTH = 10;
+
+  /**
+   * WebSDR dB scale conversion constants.
+   * WebSDR sends FFT data as unsigned 8-bit values (0-255) representing dB scale.
+   * DB_OFFSET: The midpoint value representing 0 dB (128 = center of 0-255 range)
+   * DB_RANGE: The dynamic range divisor for converting to linear scale
+   *           Using 40 dB range gives good visual contrast for radio signals
+   */
+  private readonly DB_OFFSET = 128;
+  private readonly DB_RANGE = 40;
 
   constructor(private prisma: PrismaService) {}
 
@@ -335,18 +354,18 @@ export class StreamingService {
       const arrayBuffer = await response.arrayBuffer();
       const data = Buffer.from(arrayBuffer);
 
-      if (data.length < 10) {
+      if (data.length < this.MIN_WATERFALL_DATA_LENGTH) {
         return null;
       }
 
       // Parse the waterfall data
-      // Standard WebSDR format: binary FFT magnitudes
+      // Standard WebSDR format: binary FFT magnitudes in dB scale
       const magnitudes: number[] = [];
       for (let i = 0; i < data.length; i++) {
         // Convert from dB scale (0-255) to linear (0-1)
-        // WebSDR typically uses logarithmic scale
+        // Using DB_OFFSET and DB_RANGE constants for the conversion formula
         const dbValue = data[i];
-        const linear = Math.pow(10, (dbValue - 128) / 40); // Approximate conversion
+        const linear = Math.pow(10, (dbValue - this.DB_OFFSET) / this.DB_RANGE);
         magnitudes.push(Math.min(1.0, Math.max(0, linear)));
       }
 

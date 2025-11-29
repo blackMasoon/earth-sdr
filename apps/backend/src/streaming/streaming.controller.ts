@@ -20,6 +20,12 @@ import { StreamingService } from './streaming.service';
 export class StreamingController {
   private readonly logger = new Logger(StreamingController.name);
 
+  /**
+   * Pattern to match waterfall header endpoint suffix in WebSDR URLs.
+   * Used to extract the base station URL from waterfall URLs.
+   */
+  private readonly WATERFALL_HEADER_SUFFIX_PATTERN = /\/~~waterfallheader$/;
+
   constructor(private readonly streamingService: StreamingService) {}
 
   /**
@@ -110,7 +116,7 @@ export class StreamingController {
 
     // Extract the station URL from the waterfall info
     // and try to fetch the header from the actual WebSDR
-    const stationUrl = waterfallInfo.url.replace(/\/~~waterfallheader$/, '');
+    const stationUrl = waterfallInfo.url.replace(this.WATERFALL_HEADER_SUFFIX_PATTERN, '');
     const header = await this.streamingService.fetchWaterfallHeader(stationUrl);
 
     if (!header) {
